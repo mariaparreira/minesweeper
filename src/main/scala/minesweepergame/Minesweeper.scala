@@ -82,25 +82,25 @@ object Minesweeper extends IOApp {
 
   // Reveals squares. Takes a board to return an updated board
   def revealSquare(row: Int, col: Int, board: Board): Board = {
-    // Define a recursive helper function to reveal adjacent squares
+    // Defines a recursive helper function to reveal adjacent squares
     def revealAdjacent(row: Int, col: Int, board: Board): Board = {
-      // Check if the current square is within the bounds of the board
+      // Checks if the current square is within the bounds of the board
       if (row >= 0 && row < board.length && col >= 0 && col < board(0).length) {
-        // Retrieve the square at the specified row and column
+        // Retrieves the square at the specified row and column
         val square = board(row)(col)
 
-        // Check if the square is not already revealed
+        // Checks if the square is not already revealed
         if (!square.isRevealed) {
-          // Create an updated square with isRevealed set to true
+          // Creates an updated square with isRevealed set to true
           val updatedSquare = square.copy(isRevealed = true)
 
-          // Create an updated row with the modified square
+          // Creates an updated row with the modified square
           val updatedRow = board(row).updated(col, updatedSquare)
 
-          // Create an updated board with the modified row
+          // Creates an updated board with the modified row
           val updatedBoard = board.updated(row, updatedRow)
 
-          // If the revealed square is not a mine and has no adjacent mines, recursively reveal adjacent squares
+          // If the revealed square is not a mine and has no adjacent mines, recursively reveals adjacent squares
           if (!square.isMine && countAdjacentMines(board, row, col) == 0) {
             val directions = List(
               (-1, -1), (-1, 0), (-1, 1),
@@ -108,7 +108,7 @@ object Minesweeper extends IOApp {
               (1, -1), (1, 0), (1, 1)
             )
 
-            // Recursively reveal adjacent squares
+            // Recursively reveals adjacent squares
             directions.foldLeft(updatedBoard) { case (accBoard, (dx, dy)) =>
               revealAdjacent(row + dx, col + dy, accBoard)
             }
@@ -117,7 +117,7 @@ object Minesweeper extends IOApp {
       } else board // If the specified position is out of bounds, return the original board
     }
 
-    // Start revealing adjacent squares from the specified position
+    // Starts revealing adjacent squares from the specified position
     revealAdjacent(row, col, board)
   }
 
@@ -126,8 +126,8 @@ object Minesweeper extends IOApp {
   def countAdjacentMines(board: Board, row: Int, col: Int): Int = {
     val directions = List(
       (-1, -1), (-1, 0), (-1, 1),
-      (0, -1),           (0, 1),
-      (1, -1),  (1, 0),  (1, 1)
+      (0, -1), (0, 1),
+      (1, -1), (1, 0), (1, 1)
     )
     directions.map { case (dx, dy) =>
       val newRow = row + dx
@@ -139,6 +139,7 @@ object Minesweeper extends IOApp {
     }.sum
   }
 
+  // Checks if all non-mine squares are revealed, and if true it means the player won
   def checkWin(board: Board): Boolean = !board.flatten.exists(square => !square.isMine && !square.isRevealed)
 
   // Main game loop
@@ -157,28 +158,13 @@ object Minesweeper extends IOApp {
       _ <- loop(session)
     } yield ()
 
-  //  def parseInput(input: String): Option[(Int, Int)] =
-  //    input.trim.split(" ").toList.map(a => a.toIntOption) match {
-  //      case Some(x) :: Some(y) :: Nil => Some((x,y))
-  //      case _ => None
-  //    }
-
-  def parseInput(input: String): Option[(Int, Int)] = {
-    val inputArray = input.trim.split(" ")
-    if (inputArray.length != 2) {
-      println("Invalid input! Please enter row and column as integers separated by space.")
-      None
-    } else {
-      try {
-        val Array(row, col) = inputArray.map(_.toInt)
-        Some((row, col))
-      } catch {
-        case _: NumberFormatException =>
-          println("Invalid input! Please enter row and column as integers separated by space.")
-          None
-      }
+  def parseInput(input: String): Option[(Int, Int)] =
+    input.trim.split(" ").toList.map(_.toIntOption) match {
+      case Some(x) :: Some(y) :: Nil => Some((x, y))
+      case _ =>
+        println("Invalid input! Please enter row and column as integers separated by space.")
+        None
     }
-  }
 
   def loop(session: GameSession): IO[Unit] =
     for {

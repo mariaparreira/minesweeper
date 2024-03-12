@@ -5,53 +5,61 @@ import cats.effect._
 import cats.implicits._
 
 
-import scala.concurrent.duration.FiniteDuration
+//import scala.concurrent.duration.FiniteDuration
 
 object Minesweeper extends IOApp {
   // Define global variables to store start and end time
-  var startTime: Long = _
-  var endTime: Long = _
+  private var startTime: Long = _
+  private var endTime: Long = _
 
   // Define colors using ANSI escape codes
-  val ANSI_RESET = "\u001B[0m"
-  val ANSI_BOLD = "\u001b[1m"
-  val ANSI_BLACK = "\u001B[30m"
-  val ANSI_RED = "\u001B[31m"
-  val ANSI_GREEN = "\u001B[32m"
-  val ANSI_BLUE = "\u001B[34m"
-  val ANSI_MAGENTA = "\u001B[35m"
-  val ANSI_BRIGHT_YELLOW = "\u001B[93m"
-  val ANSI_BRIGHT_BLUE = "\u001B[94m"
-  val ANSI_GREY = "\u001B[100m"
-  val ANSI_BRIGHT_CYAN = "\u001B[106m"
+  private val ANSI_RESET = "\u001B[0m"
+  private val ANSI_BOLD = "\u001b[1m"
+  private val ANSI_BLACK = "\u001B[30m"
+  private val ANSI_RED = "\u001B[31m"
+  private val ANSI_GREEN = "\u001B[32m"
+  private val ANSI_BLUE = "\u001B[34m"
+  private val ANSI_MAGENTA = "\u001B[35m"
+  private val ANSI_BRIGHT_BLUE = "\u001B[94m"
+  private val ANSI_GREY = "\u001B[100m"
+  private val ANSI_BRIGHT_CYAN = "\u001B[106m"
 
   // Defines what a square can be
-  case class Square(isMine: Boolean, isRevealed: Boolean)
+  private case class Square(isMine: Boolean, isRevealed: Boolean)
 
   // Defines a case class to encapsulate game session information
-  final case class GameSession(playerName: String, startTime: Long, endTime: Option[Long], board: Board)
+  private final case class GameSession(playerName: String, startTime: Long, endTime: Option[Long], board: Board)
 
   // Start by defining a board
-  type Board = Vector[Vector[Square]]
+  private type Board = Vector[Vector[Square]]
 
-  def beginBoard(rows: Int, cols: Int, numMines: Int): Board = {
+  private def beginBoard(rows: Int, cols: Int, numMines: Int): Board = {
+    val allPositions = for {
+      row <- 0 until rows
+      col <- 0 until cols
+    } yield (row, col)
+
+    val minePositions = Random.shuffle(allPositions).take(numMines).toSet
+
     val board = Vector.tabulate(rows, cols) { (row, col) =>
-      if (Random.nextInt(rows * cols) < numMines) Square(isMine = true, isRevealed = false)
-      else Square(isMine = false, isRevealed = false)
+      val isMine = minePositions.contains((row, col))
+      Square(isMine, isRevealed = false)
     }
+
     board
   }
 
+
   // Print the board to the console
-  def printBoard(board: Board): IO[Unit] = IO {
+  private def printBoard(board: Board): IO[Unit] = IO {
     // Print column numbers
-    println(s"${ANSI_BOLD}   " + board.head.indices.map(_.toString.padTo(3, ' ')).mkString + s"${ANSI_RESET}")
+    println(s"$ANSI_BOLD   " + board.head.indices.map(_.toString.padTo(3, ' ')).mkString + s"$ANSI_RESET")
 
     for {
       (row, rowIndex) <- board.zipWithIndex
     } yield {
       // Print row numbers and board content
-      print(s"${ANSI_BOLD}" + rowIndex.toString.padTo(3, ' ') + s"${ANSI_RESET}")
+      print(s"$ANSI_BOLD" + rowIndex.toString.padTo(3, ' ') + s"$ANSI_RESET")
       for {
         (square, colIndex) <- row.zipWithIndex
       } yield {
@@ -60,14 +68,14 @@ object Minesweeper extends IOApp {
           else {
             val adjMines = countAdjacentMines(board, rowIndex, colIndex)
             adjMines match {
-              case 1 => s"${ANSI_BRIGHT_BLUE}${adjMines.toString.padTo(3, ' ')}${ANSI_RESET}"
-              case 2 => s"${ANSI_GREEN}${adjMines.toString.padTo(3, ' ')}${ANSI_RESET}"
-              case 3 => s"${ANSI_RED}${adjMines.toString.padTo(3, ' ')}${ANSI_RESET}"
-              case 4 => s"${ANSI_BLUE}${adjMines.toString.padTo(3, ' ')}${ANSI_RESET}"
-              case 5 => s"${ANSI_MAGENTA}${adjMines.toString.padTo(3, ' ')}${ANSI_RESET}"
-              case 6 => s"${ANSI_BRIGHT_CYAN}${adjMines.toString.padTo(3, ' ')}${ANSI_RESET}"
-              case 7 => s"${ANSI_BLACK}${adjMines.toString.padTo(3, ' ')}${ANSI_RESET}"
-              case 8 => s"${ANSI_GREY}${adjMines.toString.padTo(3, ' ')}${ANSI_RESET}"
+              case 1 => s"$ANSI_BRIGHT_BLUE${adjMines.toString.padTo(3, ' ')}$ANSI_RESET"
+              case 2 => s"$ANSI_GREEN${adjMines.toString.padTo(3, ' ')}$ANSI_RESET"
+              case 3 => s"$ANSI_RED${adjMines.toString.padTo(3, ' ')}$ANSI_RESET"
+              case 4 => s"$ANSI_BLUE${adjMines.toString.padTo(3, ' ')}$ANSI_RESET"
+              case 5 => s"$ANSI_MAGENTA${adjMines.toString.padTo(3, ' ')}$ANSI_RESET"
+              case 6 => s"$ANSI_BRIGHT_CYAN${adjMines.toString.padTo(3, ' ')}$ANSI_RESET"
+              case 7 => s"$ANSI_BLACK${adjMines.toString.padTo(3, ' ')}$ANSI_RESET"
+              case 8 => s"$ANSI_GREY${adjMines.toString.padTo(3, ' ')}$ANSI_RESET"
               case _ => adjMines.toString.padTo(3, ' ')
             }
           }
@@ -81,7 +89,7 @@ object Minesweeper extends IOApp {
   }
 
   // Reveals squares. Takes a board to return an updated board
-  def revealSquare(row: Int, col: Int, board: Board): Board = {
+  private def revealSquare(row: Int, col: Int, board: Board): Board = {
     // Defines a recursive helper function to reveal adjacent squares
     def revealAdjacent(row: Int, col: Int, board: Board): Board = {
       // Checks if the current square is within the bounds of the board
@@ -123,7 +131,7 @@ object Minesweeper extends IOApp {
 
 
   // Examines all possible directions where there could be a mine
-  def countAdjacentMines(board: Board, row: Int, col: Int): Int = {
+  private def countAdjacentMines(board: Board, row: Int, col: Int): Int = {
     val directions = List(
       (-1, -1), (-1, 0), (-1, 1),
       (0, -1), (0, 1),
@@ -140,25 +148,26 @@ object Minesweeper extends IOApp {
   }
 
   // Checks if all non-mine squares are revealed, and if true it means the player won
-  def checkWin(board: Board): Boolean = !board.flatten.exists(square => !square.isMine && !square.isRevealed)
+  private def checkWin(board: Board): Boolean = !board.flatten.exists(square => !square.isMine && !square.isRevealed)
 
   // Main game loop
-  def gameLoop(board: Board, session: GameSession): IO[Unit] =
+  private def gameLoop(ref: Ref[IO, GameSession]): IO[Unit] =
     for {
+      session <- ref.get
       _ <- IO.println("Enter your name: ")
       name <- IO.readLine
       _ <- IO.println(s"Welcome $name to Minesweeper!")
       _ <- IO.println("To play the game you need to insert the coordinates you want to reveal")
       _ <- IO.println("Example, 3 5 => this reveals the square in the row 3, column 5")
       _ <- IO.println("Good luck!")
-      _ <- printBoard(board)
+      _ <- printBoard(session.board) // Print the board from the session
       _ <- IO {
         startTime = System.currentTimeMillis()
       } // Starts timer when game begins
-      _ <- loop(session)
+      _ <- loop(session) // Pass only the GameSession
     } yield ()
 
-  def parseInput(input: String): Option[(Int, Int)] =
+  private def parseInput(input: String): Option[(Int, Int)] =
     input.trim.split(" ").toList.map(_.toIntOption) match {
       case Some(x) :: Some(y) :: Nil => Some((x, y))
       case _ =>
@@ -166,7 +175,7 @@ object Minesweeper extends IOApp {
         None
     }
 
-  def loop(session: GameSession): IO[Unit] =
+  private def loop(session: GameSession): IO[Unit] =
     for {
       _ <- IO.print("\n\nEnter row and column: ")
       input <- IO.readLine
@@ -203,10 +212,11 @@ object Minesweeper extends IOApp {
     val playerName = "Player"
     val startTime = System.currentTimeMillis()
 
-    val board = beginBoard(rows, cols, numMines)
+    val program = for {
+      ref <- Ref.of[IO, GameSession](GameSession(playerName, startTime, None, beginBoard(rows, cols, numMines)))
+      _ <- gameLoop(ref)
+    } yield ()
 
-    val initialSession = GameSession(playerName, startTime, None, board)
-
-    gameLoop(board, initialSession).as(ExitCode.Success)
+    program.as(ExitCode.Success)
   }
 }

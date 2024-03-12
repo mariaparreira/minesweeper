@@ -15,8 +15,6 @@ To win the game, the player just needs to follow the numbers, to not touch the m
 
 The flags are not implemented.
 
-Sometimes the board only places 9 mines (idk why).
-
 Should implement a way so players can have a name.
 
 Should implement a way to save the timer to put it on a ranking board, so players can compare scores.

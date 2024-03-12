@@ -188,7 +188,7 @@ object Minesweeper extends IOApp {
       _ <- result match {
         case Some((row, col)) if row >= 0 && row < session.board.length && col >= 0 && col < session.board(0).length =>
           if (session.board(row)(col).isMine) {
-            println("\nGame Over! You hit a bomb.")
+            println("\nGame Over! You hit a mine.")
             endTime = System.currentTimeMillis()
             IO.println(s"\nElapsed Time: ${(endTime - startTime) / 1000} seconds")
           } else {

@@ -1,10 +1,11 @@
-package minesweepergame
+package minesweepergame.server
 
 import cats.effect._
 import cats.implicits._
 import com.comcast.ip4s._
-import org.http4s.implicits._
+import minesweepergame.game.GameSession
 import org.http4s.ember.server._
+import org.http4s.implicits._
 import org.typelevel.log4cats.LoggerFactory
 import org.typelevel.log4cats.slf4j.Slf4jFactory
 

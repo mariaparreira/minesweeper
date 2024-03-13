@@ -1,10 +1,8 @@
-package minesweepergame
+package minesweepergame.game
 
-import scala.util.Random
 import cats.effect._
 import cats.implicits._
-
-import minesweepergame.Board._
+import Board._
 
 object Minesweeper extends IOApp {
 

@@ -1,4 +1,4 @@
-package minesweepergame
+package minesweepergame.game
 
 import cats.effect.{IO, Sync}
 

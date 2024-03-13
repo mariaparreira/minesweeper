@@ -1,6 +1,6 @@
 // GameSession.scala
-package minesweepergame
+package minesweepergame.game
 
-import minesweepergame.Board._
+import minesweepergame.game.Board._
 
 final case class GameSession(playerName: String, startTime: Long, endTime: Option[Long], board: Board)

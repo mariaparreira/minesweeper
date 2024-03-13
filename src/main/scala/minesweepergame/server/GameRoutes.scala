@@ -1,6 +1,7 @@
-package minesweepergame
+package minesweepergame.server
 
 import cats.effect.{IO, Ref}
+import minesweepergame.game.GameSession
 import org.http4s.HttpRoutes
 import org.http4s.dsl.io._
 

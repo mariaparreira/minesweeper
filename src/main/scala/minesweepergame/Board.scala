@@ -41,7 +41,6 @@ object Board {
     }
   }
 
-
   // Constructs the string representation of the board
   def printBoard(board: Board): IO[Unit] = {
     val boardString = new StringBuilder()

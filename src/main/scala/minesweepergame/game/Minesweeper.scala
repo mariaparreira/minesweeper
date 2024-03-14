@@ -19,7 +19,7 @@ object Minesweeper extends IOApp {
       _ <- IO.println("Example, 3 5 => this reveals the square in the row 3, column 5")
       _ <- IO.println("Good luck!\n")
       _ <- printBoard(session.board) // Print the board from the session
-      _ = System.currentTimeMillis() // Starts timer when game begins
+      _ = IO.realTimeInstant // Starts timer when game begins
       _ <- loop(session.startTime, session.endTime, session.board, ref)
     } yield ()
 
@@ -70,16 +70,15 @@ object Minesweeper extends IOApp {
   // Entry point for the app
   override def run(args: List[String]): IO[ExitCode] = {
 
-    val rows = 8
-    val cols = 8
-    val numMines = 10
+//    val rows = 8
+//    val cols = 8
+//    val numMines = 10
 
     val playerName = "Player"
 
     val program = for {
       startTime <- IO.realTimeInstant
-      boardFactory <- IO(BoardFactory[IO])
-      initialBoard <- boardFactory.createBoard(rows, cols, numMines)
+      initialBoard <- Board.of(GameLevel.Easy)
       ref <- Ref.of[IO, GameSession](GameSession(playerName, startTime, None, initialBoard))
       _ <- gameLoop(ref)
     } yield ()

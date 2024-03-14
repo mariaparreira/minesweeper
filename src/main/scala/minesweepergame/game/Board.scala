@@ -20,27 +20,6 @@ object Board {
   // Start by defining a board
   type Board = Vector[Vector[Square]]
 
-  trait BoardFactory[F[_]] {
-    def createBoard(rows: Int, cols: Int, numMines: Int): F[Board]
-  }
-
-  object BoardFactory {
-    def apply[F[_] : Sync]: BoardFactory[F] = (rows: Int, cols: Int, numMines: Int) => Sync[F].delay {
-      val allPositions =
-        for {
-          row <- 0 until rows
-          col <- 0 until cols
-        } yield (row, col)
-
-      val minePositions = Random.shuffle(allPositions).take(numMines).toSet
-
-      Vector.tabulate(rows, cols) { (row, col) =>
-        val isMine = minePositions.contains((row, col))
-        Square(isMine, isRevealed = false)
-      }
-    }
-  }
-
   def of(level: GameLevel): IO[Board] = {
     val numRows = level match {
       case GameLevel.Easy => 8

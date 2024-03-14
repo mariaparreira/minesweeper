@@ -41,6 +41,41 @@ object Board {
     }
   }
 
+  def of(level: GameLevel): IO[Board] = {
+    val numRows = level match {
+      case GameLevel.Easy => 8
+      case GameLevel.Medium => 16
+      case GameLevel.Expert => 30
+    }
+
+    val numCols = level match {
+      case GameLevel.Easy => 8
+      case GameLevel.Medium => 16
+      case GameLevel.Expert => 16
+    }
+
+    val numMines = level match {
+      case GameLevel.Easy => 10
+      case GameLevel.Medium => 40
+      case GameLevel.Expert => 99
+    }
+
+    val allPositions =
+      for {
+        row <- 0 until numRows
+        col <- 0 until numCols
+      } yield (row, col)
+
+    for {
+      mines <- IO { Random.shuffle(allPositions).take(numMines).toSet }
+    } yield {
+      Vector.tabulate(numRows, numCols) { (row, col) =>
+        val isMine = mines.contains((row, col))
+        Square(isMine, isRevealed = false)
+      }
+    }
+  }
+
   // Constructs the string representation of the board
   def printBoard(board: Board): IO[Unit] = {
     val boardString = new StringBuilder()

@@ -4,6 +4,8 @@ import cats.effect._
 import cats.implicits._
 import Board._
 
+import java.time.Instant
+
 object Minesweeper extends IOApp {
 
   // Main game loop
@@ -15,7 +17,7 @@ object Minesweeper extends IOApp {
       _ <- IO.println(s"Welcome $name to Minesweeper!")
       _ <- IO.println("\nTo play the game you need to insert the coordinates you want to reveal")
       _ <- IO.println("Example, 3 5 => this reveals the square in the row 3, column 5")
-      _ <- IO.println("Good luck!")
+      _ <- IO.println("Good luck!\n")
       _ <- printBoard(session.board) // Print the board from the session
       _ = System.currentTimeMillis() // Starts timer when game begins
       _ <- loop(session.startTime, session.endTime, session.board, ref)
@@ -29,7 +31,7 @@ object Minesweeper extends IOApp {
         None
     }
 
-  def loop(startTime: Long, endTime: Option[Long], board: Board, ref: Ref[IO, GameSession]): IO[Unit] =
+  def loop(startTime: Instant, endTime: Option[Instant], board: Board, ref: Ref[IO, GameSession]): IO[Unit] =
     for {
       _ <- IO.print("\n\nEnter row and column: ")
       input <- IO.readLine
@@ -38,15 +40,21 @@ object Minesweeper extends IOApp {
         case Some((row, col)) if row >= 0 && row < board.length && col >= 0 && col < board(0).length =>
           if (board(row)(col).isMine) {
             println("\nGame Over! You hit a mine.")
-            val newEndTime = Some(System.currentTimeMillis())
-            IO.println(s"\nElapsed Time: ${(newEndTime.get - startTime) / 1000} seconds")
+            for {
+              newEndTime <- IO.realTimeInstant
+              elapsedTime = (newEndTime.toEpochMilli - startTime.toEpochMilli) / 1000
+              _ <- IO.println(s"\nElapsed Time: $elapsedTime seconds")
+            } yield ()
           } else {
             val updatedBoard = revealSquare(row, col, board)
             printBoard(updatedBoard) >> {
               if (checkWin(updatedBoard)) {
                 println("\n\nCongratulations!! You Win!!")
-                val newEndTime = Some(System.currentTimeMillis())
-                IO.println(s"\nElapsed Time: ${(newEndTime.get - startTime) / 1000} seconds")
+                for {
+                  newEndTime <- IO.realTimeInstant
+                  elapsedTime = (newEndTime.toEpochMilli - startTime.toEpochMilli) / 1000
+                  _ <- IO.println(s"\nElapsed Time: $elapsedTime seconds")
+                } yield ()
               }
               else { // Updates the game state in the Ref
                 ref.update(_.copy(board = updatedBoard)) >> loop(startTime, endTime, updatedBoard, ref)
@@ -67,9 +75,9 @@ object Minesweeper extends IOApp {
     val numMines = 10
 
     val playerName = "Player"
-    val startTime = System.currentTimeMillis()
 
     val program = for {
+      startTime <- IO.realTimeInstant
       boardFactory <- IO(BoardFactory[IO])
       initialBoard <- boardFactory.createBoard(rows, cols, numMines)
       ref <- Ref.of[IO, GameSession](GameSession(playerName, startTime, None, initialBoard))

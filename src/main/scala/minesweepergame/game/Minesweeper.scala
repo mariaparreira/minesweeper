@@ -5,6 +5,7 @@ import cats.implicits._
 import Board._
 
 import java.time.Instant
+import scala.io.StdIn
 
 object Minesweeper extends IOApp {
 
@@ -70,15 +71,14 @@ object Minesweeper extends IOApp {
   // Entry point for the app
   override def run(args: List[String]): IO[ExitCode] = {
 
-//    val rows = 8
-//    val cols = 8
-//    val numMines = 10
-
     val playerName = "Player"
 
     val program = for {
+      _ <- IO.println("Choose game level: Easy, Medium, Expert")
+      userInput <- IO.delay(StdIn.readLine())
+      gameLevel <- IO.fromOption(GameLevel.unapply(userInput.toLowerCase()))(new IllegalArgumentException("Invalid game level"))
       startTime <- IO.realTimeInstant
-      initialBoard <- Board.of(GameLevel.Easy)
+      initialBoard <- Board.of(gameLevel)
       ref <- Ref.of[IO, GameSession](GameSession(playerName, startTime, None, initialBoard))
       _ <- gameLoop(ref)
     } yield ()

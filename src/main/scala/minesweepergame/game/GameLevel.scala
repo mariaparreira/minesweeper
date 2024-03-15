@@ -1,12 +1,15 @@
 package minesweepergame.game
 
-import cats.effect.IO
-import minesweepergame.game.Board.Board
+import io.circe.Codec
+import io.circe.generic.semiauto.deriveCodec
 
 import scala.util.Random
 
 sealed trait GameLevel
 object GameLevel {
+
+  implicit val gameLevelCodec: Codec[GameLevel] = deriveCodec
+
   case object Easy extends GameLevel
 
   case object Medium extends GameLevel

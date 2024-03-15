@@ -21,7 +21,7 @@ object Minesweeper extends IOApp {
   def gameLoop(ref: Ref[IO, GameSession]): IO[Unit] =
     for {
       session <- ref.get
-      _ <- IO.println("\nEnter your name: ")
+      _ <- IO.println("\nEnter your game handle: ")
       name <- IO.readLine
       _ <- IO.println(s"Welcome $name to Minesweeper!")
       _ <- IO.println("\nTo play the game you need to insert the coordinates you want to reveal")

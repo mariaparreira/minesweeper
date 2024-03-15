@@ -1,10 +1,13 @@
 package minesweepergame.game
 
-import cats.effect.{IO, Sync}
+import cats.effect.IO
+import io.circe.Codec
+import io.circe.generic.semiauto.deriveCodec
 
 import scala.util.Random
 
 object Board {
+
   // Define colors using ANSI escape codes
   private val ANSI_RESET = "\u001B[0m"
   private val ANSI_BOLD = "\u001b[1m"

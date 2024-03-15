@@ -1,8 +1,11 @@
 package minesweepergame.server
 
 import cats.effect.{IO, Ref}
-import minesweepergame.game.{GameLevel, GameSession}
+import io.circe.generic.codec.DerivedAsObjectCodec.deriveCodec
+import io.circe.syntax.EncoderOps
+import minesweepergame.game.{GameId, GameLevel, GameSession}
 import org.http4s.HttpRoutes
+import org.http4s.circe.CirceEntityCodec._
 import org.http4s.dsl.io._
 
 import java.util.UUID
@@ -19,5 +22,22 @@ object GameRoutes {
           response <- Ok(s"Game created with the ID: $gameId")
         } yield response // responds with UUID
       }
+
+    case req @ POST -> Root / "game" / "command" / GameId(gameId) =>
+      for {
+        command <- req.as[Command]
+        updatedGameSession <- games.modify { gameSessions =>
+          gameSessions.get(gameId) match {
+            case Some(gameSession) =>
+              val updatedSession = gameSession.handleCommand(command)
+              (gameSessions.updated(gameId, updatedSession), updatedSession)
+            case None => (gameSessions, None)
+          }
+        }
+        response <- updatedGameSession match {
+          case Some(session) => Ok(session.asJson)
+          case None => NotFound("Game session not found")
+        }
+      } yield response
   }
 }

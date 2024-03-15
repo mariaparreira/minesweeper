@@ -9,11 +9,19 @@ import scala.io.StdIn
 
 object Minesweeper extends IOApp {
 
+  def parseLevel(userLevel: String): IO[GameLevel] =
+    GameLevel.unapply(userLevel.toLowerCase()) match {
+      case Some(level) => IO.pure(level)
+      case None =>
+        IO.println("\nInvalid input! Please enter a valid game level (Easy, Medium or Expert):") >>
+        IO.delay(StdIn.readLine()) >>= parseLevel
+    }
+
   // Main game loop
   def gameLoop(ref: Ref[IO, GameSession]): IO[Unit] =
     for {
       session <- ref.get
-      _ <- IO.println("Enter your name: ")
+      _ <- IO.println("\nEnter your name: ")
       name <- IO.readLine
       _ <- IO.println(s"Welcome $name to Minesweeper!")
       _ <- IO.println("\nTo play the game you need to insert the coordinates you want to reveal")
@@ -75,8 +83,8 @@ object Minesweeper extends IOApp {
 
     val program = for {
       _ <- IO.println("Choose game level: Easy, Medium, Expert")
-      userInput <- IO.delay(StdIn.readLine())
-      gameLevel <- IO.fromOption(GameLevel.unapply(userInput.toLowerCase()))(new IllegalArgumentException("Invalid game level"))
+      userLevel <- IO.delay(StdIn.readLine())
+      gameLevel <- parseLevel(userLevel)
       startTime <- IO.realTimeInstant
       initialBoard <- Board.of(gameLevel)
       ref <- Ref.of[IO, GameSession](GameSession(playerName, startTime, None, initialBoard))

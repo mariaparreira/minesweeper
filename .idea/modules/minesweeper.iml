@@ -19,7 +19,6 @@
     <orderEntry type="library" name="sbt: io.circe:circe-core_2.13:0.15.0-M1:jar" level="project" />
     <orderEntry type="library" name="sbt: io.circe:circe-generic_2.13:0.15.0-M1:jar" level="project" />
     <orderEntry type="library" name="sbt: io.circe:circe-jawn_2.13:0.15.0-M1:jar" level="project" />
-    <orderEntry type="library" name="sbt: io.circe:circe-literal_2.13:0.15.0-M1:jar" level="project" />
     <orderEntry type="library" name="sbt: io.circe:circe-numbers_2.13:0.15.0-M1:jar" level="project" />
     <orderEntry type="library" name="sbt: io.circe:circe-parser_2.13:0.15.0-M1:jar" level="project" />
     <orderEntry type="library" name="sbt: org.http4s:http4s-circe_2.13:1.0.0-M40:jar" level="project" />

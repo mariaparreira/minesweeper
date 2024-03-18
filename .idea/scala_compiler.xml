@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ScalaCompilerConfiguration">
-    <profile name="sbt 1" modules="minesweeper,minesweeper-project_340" />
+    <profile name="sbt 1" modules="minesweeper-project_340" />
+    <profile name="sbt 2" modules="minesweeper">
+      <option name="implicitConversions" value="true" />
+    </profile>
   </component>
 </project>

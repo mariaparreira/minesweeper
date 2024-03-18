@@ -24,6 +24,8 @@ object Board {
   type Board = Vector[Vector[Square]]
 
   def of(level: GameLevel): IO[Board] = {
+
+    // Calculates the sizing and number of mines in the board, based on the level
     val numRows = level match {
       case GameLevel.Easy => 8
       case GameLevel.Medium => 16
@@ -42,6 +44,7 @@ object Board {
       case GameLevel.Expert => 99
     }
 
+    // Generates all possible positions on the board, by iterating over each row and column
     val allPositions =
       for {
         row <- 0 until numRows
@@ -49,8 +52,10 @@ object Board {
       } yield (row, col)
 
     for {
+      // Selects a random subset of the positions to be mines
       mines <- IO { Random.shuffle(allPositions).take(numMines).toSet }
     } yield {
+      // Creates a 2D game board
       Vector.tabulate(numRows, numCols) { (row, col) =>
         val isMine = mines.contains((row, col))
         Square(isMine, isRevealed = false)
@@ -66,14 +71,16 @@ object Board {
     boardString.append(s"$ANSI_BOLD   " + board.head.indices.map(_.toString.padTo(3, ' ')).mkString + s"$ANSI_RESET\n")
 
     for {
-      (row, rowIndex) <- board.zipWithIndex
+      (row, rowIndex) <- board.zipWithIndex // Iterates over each row
     } yield {
       // Print row numbers and board content
       boardString.append(s"$ANSI_BOLD" + rowIndex.toString.padTo(3, ' ') + s"$ANSI_RESET")
       for {
-        (square, colIndex) <- row.zipWithIndex
+        (square, colIndex) <- row.zipWithIndex // Iterates over each square
       } yield {
+        // Checks if the square was revealed
         val displayBoard = if (square.isRevealed) {
+          // Checks if it's a mine or not
           if (square.isMine) "*"
           else {
             val adjMines = countAdjacentMines(board, rowIndex, colIndex)
@@ -89,12 +96,12 @@ object Board {
               case _ => adjMines.toString.padTo(3, ' ')
             }
           }
-        } else "."
-        // Adjust formatting to add space around the numbers
+        } else "." // If the square is not yet revealed
+        // Adjusts formatting to add space around the numbers
         val paddedNumber = displayBoard.padTo(3, ' ')
         boardString.append(paddedNumber)
       }
-      boardString.append("\n")
+      boardString.append("\n") // Moves to the next row, after iterating through every square in a row.
     }
 
     IO.println(boardString.toString()) // Prints the constructed string with IO.println
@@ -124,8 +131,8 @@ object Board {
           if (!square.isMine && countAdjacentMines(board, row, col) == 0) {
             val directions = List(
               (-1, -1), (-1, 0), (-1, 1),
-              (0, -1), (0, 1),
-              (1, -1), (1, 0), (1, 1)
+              (0, -1),           (0, 1),
+              (1, -1),  (1, 0),  (1, 1)
             )
 
             // Recursively reveals adjacent squares
@@ -146,8 +153,8 @@ object Board {
   def countAdjacentMines(board: Board, row: Int, col: Int): Int = {
     val directions = List(
       (-1, -1), (-1, 0), (-1, 1),
-      (0, -1), (0, 1),
-      (1, -1), (1, 0), (1, 1)
+      (0, -1),           (0, 1),
+      (1, -1),  (1, 0),  (1, 1)
     )
     directions.map { case (dx, dy) =>
       val newRow = row + dx
@@ -160,5 +167,5 @@ object Board {
   }
 
   // Checks if all non-mine squares are revealed, and if true it means the player won
-  def checkWin(board: Board): Boolean = !board.flatten.exists(square => !square.isMine && !square.isRevealed)
+  //def checkWin(board: Board): Boolean = !board.flatten.exists(square => !square.isMine && !square.isRevealed)
 }

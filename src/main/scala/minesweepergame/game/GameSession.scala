@@ -7,13 +7,15 @@ import minesweepergame.game.Board._
 import minesweepergame.server.Command
 
 import java.time.Instant
-import java.time.Instant.now
 
 final case class GameSession(playerName: String, startTime: Instant, endTime: Option[Instant], board: Board) {
-  def handleCommand(command: Command): GameSession = {
+  def handleCommand(command: Command, now: Instant): GameSession = {
     val updatedBoard = Board.revealSquare(command.row, command.col, board)
-    val wonGame = Board.checkWin(updatedBoard)
-    val updatedTime = if(wonGame) Some(now: Instant) else endTime
+    val gameResolution = GameResolution.checkWin(updatedBoard)
+    val updatedTime = gameResolution match {
+      case GameResolution.Win(_) => Some(now)
+      case _ => endTime
+    }
 
     copy(board = updatedBoard, endTime = updatedTime)
   }

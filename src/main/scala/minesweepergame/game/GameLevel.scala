@@ -24,3 +24,6 @@ object GameLevel {
   }
 }
 
+// This represents the levels of difficulty of the game.
+// Takes a string and matches to one of the difficulty levels.
+// If it matches, returns the corresponding GameLevel wrapped in Some, if not returns None

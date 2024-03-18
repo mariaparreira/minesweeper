@@ -17,9 +17,9 @@ object GameResolution {
     val unrevealedNonMine = !board.flatten.exists(square => !square.isMine && !square.isRevealed)
 
     if (unrevealedNonMine) {
-      Some(GameResolution.Win("Congratulations! You have won the game!"))
+      Some(GameResolution.Win("Congratulations! You have won the game!")) // If all non-mine squares are revealed
     } else if (board.flatten.exists(square => square.isRevealed && square.isMine)) {
-      Some(GameResolution.Lose("Game over! You have lost the game!"))
+      Some(GameResolution.Lose("Game over! You have lost the game!")) // If the revealed square is a mine
     } else {
       None // Game is still ongoing, return None
     }

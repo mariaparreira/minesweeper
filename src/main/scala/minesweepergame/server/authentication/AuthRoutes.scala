@@ -14,18 +14,19 @@ import java.util.UUID
 object AuthRoutes {
   def apply(authSecret: String, authMiddleware: AuthMiddleware[IO, UUID]): HttpRoutes[IO] = {
     HttpRoutes.of[IO] {
-      case POST -> Root / "auth" / "login" / Uuid(id) =>
-        val claim = JwtClaim(subject = Some(id.toString))
+      case POST -> Root / "auth" / "login" =>
         for {
+          id <- IO.randomUUID
+          claim = JwtClaim(subject = Some(id.toString))
           token <- IO(Jwt.encode(claim, authSecret, HS256))
           response <- Ok(token)
         } yield response
     } <+> authMiddleware(AuthedRoutes.of[UUID, IO] {
-      case GET -> Root / "auth" / "info" as gameId =>
-        Ok(s"Game with ID: $gameId")
+      case GET -> Root / "auth" / "info" as id =>
+        Ok(s"ID: $id")
     })
   }
 }
 
 // Provides routes for generating JWT tokens based on UUIDs and handling authenticated requests,
-//to retrieve game IDs.
+//to retrieve ids.

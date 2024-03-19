@@ -1,24 +1,17 @@
-[error] sbt.librarymanagement.ResolveException: Error downloading org.http4s:http4s-circe_2.13:0.20.22
-[error]   Not found
-[error]   Not found
-[error]   not found: /Users/iparreira/.ivy2/localorg.http4s/http4s-circe_2.13/0.20.22/ivys/ivy.xml
-[error]   not found: https://repo1.maven.org/maven2/org/http4s/http4s-circe_2.13/0.20.22/http4s-circe_2.13-0.20.22.pom
-[error] Error downloading io.circe:circe-generic_2.13:0.11.2
-[error]   Not found
-[error]   Not found
-[error]   not found: /Users/iparreira/.ivy2/localio.circe/circe-generic_2.13/0.11.2/ivys/ivy.xml
-[error]   not found: https://repo1.maven.org/maven2/io/circe/circe-generic_2.13/0.11.2/circe-generic_2.13-0.11.2.pom
-[error] Error downloading io.circe:circe-literal_2.13:0.11.2
-[error]   Not found
-[error]   Not found
-[error]   not found: /Users/iparreira/.ivy2/localio.circe/circe-literal_2.13/0.11.2/ivys/ivy.xml
-[error]   not found: https://repo1.maven.org/maven2/io/circe/circe-literal_2.13/0.11.2/circe-literal_2.13-0.11.2.pom
-[error] 	at lmcoursier.CoursierDependencyResolution.unresolvedWarningOrThrow(CoursierDependencyResolution.scala:344)
-[error] 	at lmcoursier.CoursierDependencyResolution.$anonfun$update$38(CoursierDependencyResolution.scala:313)
-[error] 	at scala.util.Either$LeftProjection.map(Either.scala:573)
-[error] 	at lmcoursier.CoursierDependencyResolution.update(CoursierDependencyResolution.scala:313)
-[error] 	at sbt.librarymanagement.DependencyResolution.update(DependencyResolution.scala:60)
-[error] 	at sbt.internal.LibraryManagement$.resolve$1(LibraryManagement.scala:60)
+[error] java.lang.RuntimeException: found version conflict(s) in library dependencies; some are suspected to be binary incompatible:
+[error] 
+[error] 	* org.http4s:http4s-dsl_2.13:1.0.0-M40 (early-semver) is selected over 0.23.25
+[error] 	    +- minesweeper:minesweeper_2.13:0.1.0-SNAPSHOT        (depends on 1.0.0-M40)
+[error] 	    +- dev.profunktor:http4s-jwt-auth_2.13:1.2.2          (depends on 0.23.25)
+[error] 
+[error] 	* org.http4s:http4s-server_2.13:1.0.0-M40 (early-semver) is selected over 0.23.25
+[error] 	    +- org.http4s:http4s-ember-server_2.13:1.0.0-M40      (depends on 1.0.0-M40)
+[error] 	    +- dev.profunktor:http4s-jwt-auth_2.13:1.2.2          (depends on 0.23.25)
+[error] 
+[error] 
+[error] this can be overridden using libraryDependencySchemes or evictionErrorLevel
+[error] 	at scala.sys.package$.error(package.scala:30)
+[error] 	at sbt.internal.LibraryManagement$.resolve$1(LibraryManagement.scala:90)
 [error] 	at sbt.internal.LibraryManagement$.$anonfun$cachedUpdate$12(LibraryManagement.scala:134)
 [error] 	at sbt.util.Tracked$.$anonfun$lastOutput$1(Tracked.scala:74)
 [error] 	at sbt.internal.LibraryManagement$.$anonfun$cachedUpdate$20(LibraryManagement.scala:147)
@@ -43,18 +36,15 @@
 [error] 	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
 [error] 	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
 [error] 	at java.base/java.lang.Thread.run(Thread.java:842)
-[error] (ssExtractDependencies) sbt.librarymanagement.ResolveException: Error downloading org.http4s:http4s-circe_2.13:0.20.22
-[error]   Not found
-[error]   Not found
-[error]   not found: /Users/iparreira/.ivy2/localorg.http4s/http4s-circe_2.13/0.20.22/ivys/ivy.xml
-[error]   not found: https://repo1.maven.org/maven2/org/http4s/http4s-circe_2.13/0.20.22/http4s-circe_2.13-0.20.22.pom
-[error] Error downloading io.circe:circe-generic_2.13:0.11.2
-[error]   Not found
-[error]   Not found
-[error]   not found: /Users/iparreira/.ivy2/localio.circe/circe-generic_2.13/0.11.2/ivys/ivy.xml
-[error]   not found: https://repo1.maven.org/maven2/io/circe/circe-generic_2.13/0.11.2/circe-generic_2.13-0.11.2.pom
-[error] Error downloading io.circe:circe-literal_2.13:0.11.2
-[error]   Not found
-[error]   Not found
-[error]   not found: /Users/iparreira/.ivy2/localio.circe/circe-literal_2.13/0.11.2/ivys/ivy.xml
-[error]   not found: https://repo1.maven.org/maven2/io/circe/circe-literal_2.13/0.11.2/circe-literal_2.13-0.11.2.pom
+[error] (ssExtractDependencies) found version conflict(s) in library dependencies; some are suspected to be binary incompatible:
+[error] 
+[error] 	* org.http4s:http4s-dsl_2.13:1.0.0-M40 (early-semver) is selected over 0.23.25
+[error] 	    +- minesweeper:minesweeper_2.13:0.1.0-SNAPSHOT        (depends on 1.0.0-M40)
+[error] 	    +- dev.profunktor:http4s-jwt-auth_2.13:1.2.2          (depends on 0.23.25)
+[error] 
+[error] 	* org.http4s:http4s-server_2.13:1.0.0-M40 (early-semver) is selected over 0.23.25
+[error] 	    +- org.http4s:http4s-ember-server_2.13:1.0.0-M40      (depends on 1.0.0-M40)
+[error] 	    +- dev.profunktor:http4s-jwt-auth_2.13:1.2.2          (depends on 0.23.25)
+[error] 
+[error] 
+[error] this can be overridden using libraryDependencySchemes or evictionErrorLevel

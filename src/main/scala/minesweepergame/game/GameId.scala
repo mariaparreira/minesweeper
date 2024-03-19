@@ -10,4 +10,4 @@ object GameId {
 }
 
 // Takes a string and attempts to parse it into a UUID.
-// If successful returns Some(UUID), if not returns None (in case the UUID format is invalid)
+// If successful: returns Some(UUID), if not: returns None (in case the UUID format is invalid)

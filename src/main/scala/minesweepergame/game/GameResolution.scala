@@ -1,14 +1,10 @@
 package minesweepergame.game
 
-//import io.circe.Codec
-//import io.circe.generic.semiauto.deriveCodec
 import minesweepergame.game.Board._
 
 sealed trait GameResolution
 
 object GameResolution {
-
-  //implicit val resoltuionCodec: Codec[GameResolution] = deriveCodec
 
   final case class Win(msg: String) extends GameResolution
   final case class Lose(msg: String) extends GameResolution

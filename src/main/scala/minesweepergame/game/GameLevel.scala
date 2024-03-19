@@ -3,8 +3,6 @@ package minesweepergame.game
 import io.circe.Codec
 import io.circe.generic.semiauto.deriveCodec
 
-import scala.util.Random
-
 sealed trait GameLevel
 object GameLevel {
 

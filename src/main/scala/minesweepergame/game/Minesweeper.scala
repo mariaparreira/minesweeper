@@ -92,11 +92,12 @@ object Minesweeper extends IOApp {
 
     val program = for {
       _ <- IO.println("Choose game level: Easy, Medium, Expert")
+      playerId <- IO.randomUUID
       userLevel <- IO.delay(StdIn.readLine())
       gameLevel <- parseLevel(userLevel)
       startTime <- IO.realTimeInstant
       initialBoard <- Board.of(gameLevel)
-      ref <- Ref.of[IO, GameSession](GameSession(playerName, startTime, None, initialBoard))
+      ref <- Ref.of[IO, GameSession](GameSession(playerId, playerName, startTime, None, initialBoard))
       _ <- gameLoop(ref)
     } yield ()
 

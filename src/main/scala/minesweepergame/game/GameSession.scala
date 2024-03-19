@@ -7,8 +7,9 @@ import minesweepergame.game.Board._
 import minesweepergame.server.Command
 
 import java.time.Instant
+import java.util.UUID
 
-final case class GameSession(playerName: String, startTime: Instant, endTime: Option[Instant], board: Board) {
+final case class GameSession(playerId: UUID, playerName: String, startTime: Instant, endTime: Option[Instant], board: Board) {
   // Handles a player's command (revealing a square) during the game.
   def handleCommand(command: Command, now: Instant): GameSession = {
     val updatedBoard = Board.revealSquare(command.row, command.col, board) // updates the board given the command
@@ -26,9 +27,9 @@ object GameSession {
 
   implicit val gameSessionCodec: Codec[GameSession] = deriveCodec
 
-  def create(playerName: String, startTime: Instant, endTime: Option[Instant], level: GameLevel): IO[GameSession] = {
+  def create(playerId: UUID, playerName: String, startTime: Instant, endTime: Option[Instant], level: GameLevel): IO[GameSession] = {
     for {
       board <- Board.of(level)
-    } yield GameSession(playerName, startTime, endTime, board)
+    } yield GameSession(playerId, playerName, startTime, endTime, board)
   }
 }

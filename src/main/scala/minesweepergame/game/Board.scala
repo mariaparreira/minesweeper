@@ -1,8 +1,6 @@
 package minesweepergame.game
 
 import cats.effect.IO
-import io.circe.Codec
-import io.circe.generic.semiauto.deriveCodec
 
 import scala.util.Random
 
@@ -16,9 +14,9 @@ object Board {
   private val ANSI_GREEN = "\u001B[32m"
   private val ANSI_BLUE = "\u001B[34m"
   private val ANSI_MAGENTA = "\u001B[35m"
+  private val ANSI_GREY = "\u001B[90m"
   private val ANSI_BRIGHT_BLUE = "\u001B[94m"
-  private val ANSI_GREY = "\u001B[100m"
-  private val ANSI_BRIGHT_CYAN = "\u001B[106m"
+  private val ANSI_BRIGHT_CYAN = "\u001B[96m"
 
   // Start by defining a board
   type Board = Vector[Vector[Square]]

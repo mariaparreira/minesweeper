@@ -25,16 +25,13 @@ object Main extends IOApp {
       authMiddleware = AuthMiddleware(config.authSecret)
       authRoutes      = AuthRoutes(config.authSecret, authMiddleware)
       healthRoutes = HealthRoutes()
-      gameRoutes = GameRoutes(gameRef, authMiddleware, _)
-      allRoutes = healthRoutes <+> gameRoutes  <+> authRoutes
       server <- EmberServerBuilder
         .default[IO]
         .withHost(ipv4"0.0.0.0")
         .withPort(port"8000")
-        .withHttpApp(allRoutes.orNotFound)
         .withHttpWebSocketApp { wsb =>
           val gameRoutes = GameRoutes(gameRef, authMiddleware, wsb)
-          gameRoutes
+          (healthRoutes <+> authRoutes <+> gameRoutes).orNotFound
         }
         .build
         .useForever

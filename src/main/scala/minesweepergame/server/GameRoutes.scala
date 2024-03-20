@@ -1,5 +1,6 @@
 package minesweepergame.server
 
+import cats.effect.std.Queue
 import cats.effect.{IO, Ref}
 import minesweepergame.game.{GameLevel, GameSession, Uuid}
 import org.http4s.{AuthedRoutes, HttpRoutes}
@@ -7,8 +8,10 @@ import org.http4s.circe.CirceEntityCodec._
 import org.http4s.dsl.io._
 import io.circe.syntax._
 import io.circe.parser._
+import fs2._
 import org.http4s.server.AuthMiddleware
 import org.http4s.server.websocket.WebSocketBuilder2
+import org.http4s.websocket.WebSocketFrame
 import org.http4s.websocket.WebSocketFrame._
 
 import java.util.UUID
@@ -26,27 +29,48 @@ object GameRoutes {
         } yield response // responds with UUID
 
       case GET -> Root / "game" / "connect" / Uuid(id) as playerId =>
-        val wsbService = wsb.build(
-          send = games.get.map(_.get(id).map(_.asJson.noSpaces)),
-          receive = {
-              for {
-                now <- IO.realTimeInstant
-                updatedGameSession <- games.modify { gameSessions =>
-                  gameSessions.get(id) match {
-                    case Some(gameSession) if gameSession.playerId == playerId =>
-                      val updatedSession = gameSession.handleCommand(_, now)
-                      (gameSessions.updated(id, updatedSession), Some(updatedSession))
-                    case _ => (gameSessions, None)
-                  }
-                }
-                response <- updatedGameSession match {
-                  case Some(session) => Ok(session.asJson)
-                  case None => NotFound("Game session not found")
-                }
-              } yield response
+        for {
+          canJoinGame <- games.get.map { gameSessions =>
+            gameSessions.get(id) match {
+              case Some(session) if session.playerId == playerId => true
+              case _ => false
+            }
           }
-        )
-        wsbService
+          response <- if (canJoinGame) {
+            for {
+              queue <- Queue.unbounded[IO, WebSocketFrame]
+              sendText = (text: String) => queue.offer(WebSocketFrame.Text(text))
+              response <- wsb.build(
+                send = Stream.repeatEval(queue.take),
+                receive = _.evalMap {
+                  case Text(text, _) =>
+                    decode[Command](text) match {
+                      case Right(command) =>
+                        for {
+                          now <- IO.realTimeInstant
+                          updatedState <- games.modify { games =>
+                            games.get(id) match {
+                              case Some(game) =>
+                                val updatedGame = game.handleCommand(command, now)
+                                (games.updated(id, updatedGame), Some(updatedGame))
+                              case None => (games, None)
+                            }
+                          }
+                          _ <- updatedState match {
+                            case Some(updated) => sendText(updated.asJson.toString)
+                            case None => sendText(s"Handling command $command failed unexpectedly")
+                          }
+                        } yield ()
+                      case Left(e) => sendText(s"Failed to parse $text as a command due to $e")
+                    }
+                  case  _ => IO.unit
+                }
+              )
+            } yield response
+          }
+          else NotFound()
+
+        } yield response
     }
 
     authMiddleware(authedRoutes)

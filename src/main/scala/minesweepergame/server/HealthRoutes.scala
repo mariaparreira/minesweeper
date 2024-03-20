@@ -10,3 +10,6 @@ object HealthRoutes {
       Ok("I am up and running.")
   }
 }
+
+// Defines a simple http route for checking the health of the server.
+// When a GET request is made to the /health endpoint, it responds with a message indicating that the server is running.

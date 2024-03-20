@@ -2,7 +2,6 @@ package minesweepergame.server.authentication
 
 import cats.effect.IO
 import cats.implicits.toSemigroupKOps
-import minesweepergame.game.Uuid
 import org.http4s.{AuthedRoutes, HttpRoutes}
 import org.http4s.dsl.io._
 import org.http4s.server.AuthMiddleware
@@ -16,14 +15,14 @@ object AuthRoutes {
     HttpRoutes.of[IO] {
       case POST -> Root / "auth" / "login" =>
         for {
-          id <- IO.randomUUID
-          claim = JwtClaim(subject = Some(id.toString))
-          token <- IO(Jwt.encode(claim, authSecret, HS256))
-          response <- Ok(token)
+          id <- IO.randomUUID // Generates random UUID
+          claim = JwtClaim(subject = Some(id.toString)) // Creates a jwt claim containing the id
+          token <- IO(Jwt.encode(claim, authSecret, HS256)) // encodes the jwt claim into a token using authSecret and HS256
+          response <- Ok(token) // Responds with the token
         } yield response
-    } <+> authMiddleware(AuthedRoutes.of[UUID, IO] {
+    } <+> authMiddleware(AuthedRoutes.of[UUID, IO] { // Combines the login endpoint with authenticated routes
       case GET -> Root / "auth" / "info" as id =>
-        Ok(s"ID: $id")
+        Ok(s"Player ID: $id")
     })
   }
 }

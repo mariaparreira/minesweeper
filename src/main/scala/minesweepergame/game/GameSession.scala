@@ -1,15 +1,15 @@
 package minesweepergame.game
 
 import cats.effect.IO
-import io.circe.Codec
-import io.circe.generic.semiauto.deriveCodec
+import io.circe._
+import io.circe.generic.semiauto._
 import minesweepergame.game.Board._
 import minesweepergame.server.Command
 
 import java.time.Instant
 import java.util.UUID
 
-final case class GameSession(playerId: UUID, playerName: String, startTime: Instant, endTime: Option[Instant], board: Board) {
+final case class GameSession(player: Player, startTime: Instant, endTime: Option[Instant], board: Board) {
   // Checks if the game is over, based on the time
   def gameOver: Boolean = endTime.isDefined
 
@@ -33,9 +33,9 @@ object GameSession {
 
   implicit val gameSessionCodec: Codec[GameSession] = deriveCodec
 
-  def create(playerId: UUID, playerName: String, startTime: Instant, endTime: Option[Instant], level: GameLevel): IO[GameSession] = {
+  def create(player: Player, startTime: Instant, endTime: Option[Instant], level: GameLevel): IO[GameSession] = {
     for {
       board <- Board.of(level)
-    } yield GameSession(playerId, playerName, startTime, endTime, board)
+    } yield GameSession(player, startTime, endTime, board)
   }
 }

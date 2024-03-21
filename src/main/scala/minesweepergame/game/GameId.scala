@@ -3,7 +3,7 @@ package minesweepergame.game
 import java.util.UUID
 import scala.util.Try
 
-object Uuid {
+object GameId {
 
   def unapply(s: String): Option[UUID] =
     Try(UUID.fromString(s)).toOption

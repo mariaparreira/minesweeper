@@ -1,7 +1,7 @@
 package minesweepergame.game
 
-import io.circe.Codec
-import io.circe.generic.semiauto.deriveCodec
+import io.circe._
+import io.circe.generic.semiauto._
 
 // Defines what a square can be
 case class Square(isMine: Boolean, isRevealed: Boolean)

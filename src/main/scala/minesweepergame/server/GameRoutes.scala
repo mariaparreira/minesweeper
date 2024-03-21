@@ -2,7 +2,7 @@ package minesweepergame.server
 
 import cats.effect.std.Queue
 import cats.effect.{IO, Ref}
-import minesweepergame.game.{GameLevel, GameSession, Uuid}
+import minesweepergame.game.{GameLevel, GameSession, Player, GameId}
 import org.http4s.{AuthedRoutes, HttpRoutes}
 import org.http4s.circe.CirceEntityCodec._
 import org.http4s.dsl.io._
@@ -18,20 +18,20 @@ import org.http4s.websocket.WebSocketFrame._
 import java.util.UUID
 
 object GameRoutes {
-  def apply(games: Ref[IO, Map[UUID, GameSession]], authMiddleware: AuthMiddleware[IO, UUID], wsb: WebSocketBuilder2[IO]): HttpRoutes[IO] = {
-    val authedRoutes: AuthedRoutes[UUID, IO] = AuthedRoutes.of[UUID, IO] {
-      case POST -> Root / "game" / "create" / GameLevel(level) as playerId =>
+  def apply(games: Ref[IO, Map[UUID, GameSession]], authMiddleware: AuthMiddleware[IO, Player], wsb: WebSocketBuilder2[IO]): HttpRoutes[IO] = {
+    val authedRoutes: AuthedRoutes[Player, IO] = AuthedRoutes.of[Player, IO] {
+      case POST -> Root / "game" / "create" / GameLevel(level) as player =>
         for {
           instant <- IO.realTimeInstant
-          newGameSession <- GameSession.create(playerId, "Player", instant, None, level) // creates a new GameSession and passes the playerId
+          newGameSession <- GameSession.create(player, instant, None, level) // creates a new GameSession and passes the playerId
           gameId <- IO.randomUUID // creates a new UUID for gameId
           _ <- games.update(_.updated(gameId, newGameSession))
           response <- Ok(s"Game created with the ID: $gameId")
         } yield response // responds with UUID
 
-      case GET -> Root / "game" / "connect" / Uuid(id) as playerId =>
+      case GET -> Root / "game" / "connect" / GameId(id) as player =>
         for {
-          canJoinGame <- games.get.map(_.get(id).exists(_.playerId == playerId))
+          canJoinGame <- games.get.map(_.get(id).exists(_.player == player))
           response <- if (canJoinGame) {
             for {
               queue <- Queue.unbounded[IO, WebSocketFrame]
@@ -93,7 +93,7 @@ object GameRoutes {
 // POST -> Root / "game" / "create" / GameLevel(level) as playerId:  handles post requests to the /game/create endpoint
 //with a specific GameLevel. Creates a new game session, generates a UUID for the game session ID, updates the game
 //session map, and responds with the ID of the created game session.
-// req @ POST -> Root / "game" / "command" / Uuid(id) as playerId: handles post requests to the /game/command endpoint
+// req @ POST -> Root / "game" / "command" / GameId(id) as playerId: handles post requests to the /game/command endpoint
 //with a specific game session ID. Extracts the command from the request body, updates the corresponding game session
 //with the command, and responds with the updated game session as JSON.
 // authMiddleware(authedRoutes): applies the authentication middleware to the AuthedRoutes, ensuring that only

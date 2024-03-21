@@ -1,7 +1,7 @@
 package minesweepergame.game
 
-import io.circe.Codec
-import io.circe.generic.semiauto.deriveCodec
+import io.circe._
+import io.circe.generic.semiauto._
 
 sealed trait GameLevel
 object GameLevel {

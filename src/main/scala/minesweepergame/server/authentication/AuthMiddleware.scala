@@ -16,7 +16,12 @@ object AuthMiddleware {
 
     JwtAuthMiddleware(
       auth, authenticate = _ => (claim: JwtClaim) =>
-        IO.pure(claim.subject.flatMap(sub => decode[Player](sub).toOption))
+        IO.pure {
+          parse(claim.content)
+            .flatMap(_.hcursor.downField("sub").as[String])
+            .flatMap(decode[Player])
+            .toOption
+        }
     )
   }
 }

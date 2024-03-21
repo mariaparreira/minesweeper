@@ -22,15 +22,14 @@ object AuthRoutes {
           claim = JwtClaim(
             expiration = Some(System.currentTimeMillis() + 86400 * 1000), // Token expires in 24 hours
             subject = Some(player.asJson.noSpaces) // Includes player information in the payload
-          )// Creates a jwt claim containing the player
+          ) // Creates a jwt claim containing the player
           token <- IO(Jwt.encode(claim, authSecret, HS256)) // encodes the jwt claim into a token using authSecret and HS256
           response <- Ok(token) // Responds with the token
         } yield response
-    }
-//    <+> authMiddleware(AuthedRoutes.of[UUID, IO] { // Combines the login endpoint with authenticated routes
-//      case GET -> Root / "auth" / "info" as id =>
-//        Ok(s"Player ID: $id")
-//    })
+    } <+> authMiddleware(AuthedRoutes.of[Player, IO] { // Combines the login endpoint with authenticated routes
+      case GET -> Root / "auth" / "info" as player =>
+        Ok(s"Player ID: $player")
+    })
   }
 }
 

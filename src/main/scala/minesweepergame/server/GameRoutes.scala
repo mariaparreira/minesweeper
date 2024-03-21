@@ -8,6 +8,7 @@ import org.http4s.circe.CirceEntityCodec._
 import org.http4s.dsl.io._
 import io.circe.syntax._
 import io.circe.parser._
+import io.circe._
 import fs2._
 import org.http4s.server.AuthMiddleware
 import org.http4s.server.websocket.WebSocketBuilder2
@@ -30,12 +31,7 @@ object GameRoutes {
 
       case GET -> Root / "game" / "connect" / Uuid(id) as playerId =>
         for {
-          canJoinGame <- games.get.map { gameSessions =>
-            gameSessions.get(id) match {
-              case Some(session) if session.playerId == playerId => true
-              case _ => false
-            }
-          }
+          canJoinGame <- games.get.map(_.get(id).exists(_.playerId == playerId))
           response <- if (canJoinGame) {
             for {
               queue <- Queue.unbounded[IO, WebSocketFrame]
@@ -52,13 +48,26 @@ object GameRoutes {
                             games.get(id) match {
                               case Some(game) =>
                                 val updatedGame = game.handleCommand(command, now)
-                                (games.updated(id, updatedGame), Some(updatedGame))
-                              case None => (games, None)
+                                val gameOver = updatedGame.gameOver
+                                val responseText = if (gameOver) {
+                                  val gameJson = updatedGame.asJson
+                                  val gameOverJson = Json.obj("gameOver" -> Json.True)
+                                  (gameJson.deepMerge(gameOverJson)).toString
+                                } else updatedGame.asJson.toString
+                                val newState = {
+                                  if (gameOver) games.updated(id, updatedGame).removed(id)
+                                  else games.updated(id, updatedGame)
+                                }
+                                (newState, (responseText, gameOver))
+                                //(games.updated(id, updatedGame), (responseText, gameOver))
+                              case None => (games, (s"Game with ID $id not found", false))
                             }
                           }
                           _ <- updatedState match {
-                            case Some(updated) => sendText(updated.asJson.toString)
-                            case None => sendText(s"Handling command $command failed unexpectedly")
+                            case (responseText, true) =>
+                              sendText(responseText) >> queue.offer(WebSocketFrame.Close()) //gameOver = true, disconnects
+                            case (responseText, _) => sendText(responseText)
+                            case _ => IO.unit //sendText(s"Handling command $command failed unexpectedly")
                           }
                         } yield ()
                       case Left(e) => sendText(s"Failed to parse $text as a command due to $e")

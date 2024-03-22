@@ -7,15 +7,14 @@ import minesweepergame.game.Board._
 import minesweepergame.server.Command
 
 import java.time.Instant
-import java.util.UUID
 
 final case class GameSession(player: Player, startTime: Instant, endTime: Option[Instant], board: Board) {
   // Checks if the game is over, based on the time
   def gameOver: Boolean = endTime.isDefined
 
   // Handles a player's command (revealing a square) during the game.
-  def handleCommand(command: Command, now: Instant): GameSession = {
-    if (gameOver) this // If the game is over returns the current state without updating
+  def handleCommand(command: Command, now: Instant): (GameSession, Option[GameResolution]) = {
+    if (gameOver) (this, None) // Returns the current state without updating
     else {
       val updatedBoard = Board.revealSquare(command.row, command.col, board) // updates the board given the command
       val gameResolution = GameResolution.checkWin(updatedBoard) // checks if won or lost game
@@ -24,7 +23,8 @@ final case class GameSession(player: Player, startTime: Instant, endTime: Option
         case _ => endTime
       } // if game won or lost, it'll change the endTime to the current time. otherwise, endTime will stay null.
 
-      copy(board = updatedBoard, endTime = updatedTime)
+      val updatedGame = copy(board = updatedBoard, endTime = updatedTime)
+      (updatedGame, gameResolution)
     }
   }
 }

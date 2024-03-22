@@ -2,7 +2,7 @@ package minesweepergame.server
 
 import cats.effect.std.Queue
 import cats.effect.{IO, Ref}
-import minesweepergame.game.{GameLevel, GameSession, Player, GameId}
+import minesweepergame.game.{GameId, GameLevel, GameResolution, GameSession, Player}
 import org.http4s.{AuthedRoutes, HttpRoutes}
 import org.http4s.circe.CirceEntityCodec._
 import org.http4s.dsl.io._
@@ -18,7 +18,8 @@ import org.http4s.websocket.WebSocketFrame._
 import java.util.UUID
 
 object GameRoutes {
-  def apply(games: Ref[IO, Map[UUID, GameSession]], authMiddleware: AuthMiddleware[IO, Player], wsb: WebSocketBuilder2[IO]): HttpRoutes[IO] = {
+  def apply(games: Ref[IO, Map[UUID, GameSession]], leaderBoard: Ref[IO, Map[String, Long]], authMiddleware: AuthMiddleware[IO, Player], wsb: WebSocketBuilder2[IO]): HttpRoutes[IO] = {
+
     val authedRoutes: AuthedRoutes[Player, IO] = AuthedRoutes.of[Player, IO] {
       case POST -> Root / "game" / "create" / GameLevel(level) as player =>
         for {
@@ -47,19 +48,45 @@ object GameRoutes {
                           updatedState <- games.modify { games =>
                             games.get(id) match {
                               case Some(game) =>
-                                val updatedGame = game.handleCommand(command, now)
+                                val (updatedGame, resolution) = game.handleCommand(command, now)
                                 val gameOver = updatedGame.gameOver
                                 val responseText = if (gameOver) {
                                   val gameJson = updatedGame.asJson
                                   val gameOverJson = Json.obj("gameOver" -> Json.True)
                                   (gameJson.deepMerge(gameOverJson)).toString
                                 } else updatedGame.asJson.toString
-                                val newState = {
-                                  if (gameOver) games.updated(id, updatedGame).removed(id)
-                                  else games.updated(id, updatedGame)
+                                val newState = resolution match {
+                                  case Some(GameResolution.Win(_)) =>
+                                    val playerName = player.screenName
+                                    val startTime = game.startTime
+                                    val elapsedTime = now.toEpochMilli - startTime.toEpochMilli
+                                    leaderBoard.update(_.updated(playerName, elapsedTime)) >> IO.pure(games.updated(id, updatedGame))
+                                  case _ => IO.pure(games)
                                 }
+                                // Send the response
+                                if (gameOver) queue.offer(WebSocketFrame.Close())
+                                else IO.unit -> (responseText, gameOver)
+
                                 (newState, (responseText, gameOver))
-                                //(games.updated(id, updatedGame), (responseText, gameOver))
+
+                              //                                val updatedGame = game.handleCommand(command, now)
+//                                val gameOver = updatedGame.gameOver
+//                                val responseText = if (gameOver) {
+//                                  val gameJson = updatedGame.asJson
+//                                  val gameOverJson = Json.obj("gameOver" -> Json.True)
+//                                  (gameJson.deepMerge(gameOverJson)).toString
+//                                } else updatedGame.asJson.toString
+//                                val newState = {
+//                                  if (gameOver && updatedGame == GameResolution.Win) {
+//                                    // Update the leaderboard if the game ends with a win
+//                                    val playerName = player.screenName
+//                                    val startTime = game.startTime
+//                                    val elapsedTime = now.toEpochMilli - startTime.toEpochMilli
+//                                    leaderBoard.update(_.updated(playerName, elapsedTime))
+//                                  }
+//                                  if (gameOver) games.updated(id, updatedGame).removed(id)
+//                                  else games.updated(id, updatedGame)
+//                                }
                               case None => (games, (s"Game with ID $id not found", false))
                             }
                           }
@@ -79,6 +106,13 @@ object GameRoutes {
           }
           else NotFound()
 
+        } yield response
+
+      case GET -> Root / "game" / "leaderBoard" as _ =>
+        for {
+          leaderBoardMap <- leaderBoard.get
+          top10Results = leaderBoardMap.toList.sortBy(-_._2).take(10) // Get top 10 results sorted by descending order of time
+          response <- Ok(top10Results.asJson)
         } yield response
     }
 

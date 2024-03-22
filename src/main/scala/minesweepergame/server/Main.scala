@@ -22,6 +22,7 @@ object Main extends IOApp {
     for {
       config <- ConfigSource.default.loadF[IO, AppConfig]
       gameRef <- Ref.of[IO, Map[UUID, GameSession]](Map.empty)
+      leaderBoardRef <- Ref.of[IO, Map[String, Long]](Map.empty)
       authMiddleware = AuthMiddleware(config.authSecret)
       authRoutes      = AuthRoutes(config.authSecret, authMiddleware)
       healthRoutes = HealthRoutes()
@@ -30,7 +31,7 @@ object Main extends IOApp {
         .withHost(ipv4"0.0.0.0")
         .withPort(port"8000")
         .withHttpWebSocketApp { wsb =>
-          val gameRoutes = GameRoutes(gameRef, authMiddleware, wsb)
+          val gameRoutes = GameRoutes(gameRef, leaderBoardRef, authMiddleware, wsb)
           (healthRoutes <+> authRoutes <+> gameRoutes).orNotFound
         }
         .build

@@ -4,7 +4,9 @@ import io.circe._
 import io.circe.generic.semiauto._
 import minesweepergame.game.Board._
 
-sealed trait GameResolution
+sealed trait GameResolution {
+  def msg: String
+}
 
 object GameResolution {
 

@@ -2,13 +2,13 @@ package minesweepergame.server
 
 import cats.effect.std.Queue
 import cats.effect.{IO, Ref}
+import cats.implicits.toFoldableOps
 import minesweepergame.game.{GameId, GameLevel, GameResolution, GameSession, Player}
 import org.http4s.{AuthedRoutes, HttpRoutes}
 import org.http4s.circe.CirceEntityCodec._
 import org.http4s.dsl.io._
 import io.circe.syntax._
 import io.circe.parser._
-import io.circe._
 import fs2._
 import org.http4s.server.AuthMiddleware
 import org.http4s.server.websocket.WebSocketBuilder2
@@ -45,61 +45,39 @@ object GameRoutes {
                       case Right(command) =>
                         for {
                           now <- IO.realTimeInstant
-                          updatedState <- games.modify { games =>
+                          maybeUpdateGameAndMaybeResolution <- games.modify { games =>
                             games.get(id) match {
-                              case Some(game) =>
+                              case Some(game) => // If game was found
                                 val (updatedGame, resolution) = game.handleCommand(command, now)
-                                val gameOver = updatedGame.gameOver
-                                val responseText = if (gameOver) {
-                                  val gameJson = updatedGame.asJson
-                                  val gameOverJson = Json.obj("gameOver" -> Json.True)
-                                  (gameJson.deepMerge(gameOverJson)).toString
-                                } else updatedGame.asJson.toString
-                                val newState = resolution match {
-                                  case Some(GameResolution.Win(_)) =>
-                                    val playerName = player.screenName
-                                    val startTime = game.startTime
-                                    val elapsedTime = now.toEpochMilli - startTime.toEpochMilli
-                                    leaderBoard.update(_.updated(playerName, elapsedTime)) >> IO.pure(games.updated(id, updatedGame))
-                                  case _ => IO.pure(games)
-                                }
-                                // Send the response
-                                if (gameOver) queue.offer(WebSocketFrame.Close())
-                                else IO.unit -> (responseText, gameOver)
-
-                                (newState, (responseText, gameOver))
-
-                              //                                val updatedGame = game.handleCommand(command, now)
-//                                val gameOver = updatedGame.gameOver
-//                                val responseText = if (gameOver) {
-//                                  val gameJson = updatedGame.asJson
-//                                  val gameOverJson = Json.obj("gameOver" -> Json.True)
-//                                  (gameJson.deepMerge(gameOverJson)).toString
-//                                } else updatedGame.asJson.toString
-//                                val newState = {
-//                                  if (gameOver && updatedGame == GameResolution.Win) {
-//                                    // Update the leaderboard if the game ends with a win
-//                                    val playerName = player.screenName
-//                                    val startTime = game.startTime
-//                                    val elapsedTime = now.toEpochMilli - startTime.toEpochMilli
-//                                    leaderBoard.update(_.updated(playerName, elapsedTime))
-//                                  }
-//                                  if (gameOver) games.updated(id, updatedGame).removed(id)
-//                                  else games.updated(id, updatedGame)
-//                                }
-                              case None => (games, (s"Game with ID $id not found", false))
+                                // If no resolution - update game, if there's one (lose/win) - remove
+                                val newState = resolution.fold(games.updated(id, updatedGame))(_ => games.removed(id))
+                                (newState, Some((updatedGame, resolution)))
+                              case None => (games, None) // If no game found, doesn't update games ref and returns None
                             }
                           }
-                          _ <- updatedState match {
-                            case (responseText, true) =>
-                              sendText(responseText) >> queue.offer(WebSocketFrame.Close()) //gameOver = true, disconnects
-                            case (responseText, _) => sendText(responseText)
-                            case _ => IO.unit //sendText(s"Handling command $command failed unexpectedly")
+                          _ <- maybeUpdateGameAndMaybeResolution match {
+                            case Some((updatedGame, maybeResolution)) => // This means a game was found and updated
+                              for {
+                                _ <- sendText(updatedGame.asJson.noSpaces)
+                                _ <- maybeResolution.traverse_ { resolution =>
+                                  val updateLeaderBoard = resolution match {
+                                    case _: GameResolution.Win => // If win, calculates time taken
+                                      val elapsedTime = now.getEpochSecond - updatedGame.startTime.getEpochSecond
+                                      leaderBoard.update { leaderBoard => // and updates the LB with best time
+                                        val bestTime = leaderBoard.get(player.screenName).map(_.min(elapsedTime)).getOrElse(elapsedTime)
+                                        leaderBoard.updated(player.screenName, bestTime)
+                                      }
+                                    case _ => IO.unit
+                                  }
+                                  // Sends a message indicating the resolution outcome and disconnects the server
+                                  updateLeaderBoard *> sendText(resolution.msg) *> queue.offer(WebSocketFrame.Close())
+                                }
+                              } yield ()
                           }
                         } yield ()
                       case Left(e) => sendText(s"Failed to parse $text as a command due to $e")
                     }
-                  case  _ => IO.unit
+                  case _ => IO.unit
                 }
               )
             } yield response
@@ -111,7 +89,7 @@ object GameRoutes {
       case GET -> Root / "game" / "leaderBoard" as _ =>
         for {
           leaderBoardMap <- leaderBoard.get
-          top10Results = leaderBoardMap.toList.sortBy(-_._2).take(10) // Get top 10 results sorted by descending order of time
+          top10Results = leaderBoardMap.toList.sortBy(_._2).take(10) // Get top 10 results sorted by ascending order of time
           response <- Ok(top10Results.asJson)
         } yield response
     }
@@ -132,6 +110,8 @@ object GameRoutes {
 //with the command, and responds with the updated game session as JSON.
 // authMiddleware(authedRoutes): applies the authentication middleware to the AuthedRoutes, ensuring that only
 //authenticated requests are processed
+// GET -> Root / "game" / "leaderBoard" as _: retrieves the leaderboard, and orders top 10 results by ascending order,
+//so from best time (shortest) to worst time (longest).
 
 // Sets up http routes for managing game sessions in the game, including creating new sessions and
-//handling game commands, while also adding authentication to these routes using AuthMiddleware.
+//connecting to existing ones via WebSocket, and retrieving the leaderboard for a server.

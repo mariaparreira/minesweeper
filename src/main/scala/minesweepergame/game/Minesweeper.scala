@@ -15,7 +15,7 @@ object Minesweeper extends IOApp {
       case Some(level) => IO.pure(level)
       case None =>
         IO.println("\nInvalid input! Please enter a valid game level (Easy, Medium or Expert):") >>
-        IO.delay(StdIn.readLine()) >>= parseLevel
+          IO.delay(StdIn.readLine()) >>= parseLevel
     }
 
   // Main game loop
@@ -46,36 +46,24 @@ object Minesweeper extends IOApp {
       result = parseInput(input)
       _ <- result match {
         case Some((row, col)) if row >= 0 && row < board.length && col >= 0 && col < board(0).length =>
-          val square = board(row)(col)
-          if (square.isMine) {
-            println("\nGame Over! You hit a mine.")
-            for {
-              newEndTime <- IO.realTimeInstant
-              elapsedTime = (newEndTime.toEpochMilli - startTime.toEpochMilli) / 1000
-              _ <- IO.println(s"\nElapsed Time: $elapsedTime seconds")
-            } yield ()
-          } else {
-            val updatedBoard = revealSquare(row, col, board)
-            printBoard(updatedBoard) >> {
-              val gameResolution = checkWin(updatedBoard)
-              gameResolution match {
-                case Some(GameResolution.Win(_)) =>
-                  println("\n\nCongratulations!! You Win!!")
-                  for {
-                    newEndTime <- IO.realTimeInstant
-                    elapsedTime = (newEndTime.toEpochMilli - startTime.toEpochMilli) / 1000
-                    _ <- IO.println(s"\nElapsed Time: $elapsedTime seconds")
-                  } yield ()
-                case Some(GameResolution.Lose(_)) =>
-                  println("\nGame Over! You hit a mine.")
-                  for {
-                    newEndTime <- IO.realTimeInstant
-                    elapsedTime = (newEndTime.toEpochMilli - startTime.toEpochMilli) / 1000
-                    _ <- IO.println(s"\nElapsed Time: $elapsedTime seconds")
-                  } yield ()
-                case _ => ref.update(_.copy(board = updatedBoard)) >> loop(startTime, endTime, updatedBoard, ref)
-              } // Recursively calls loop with updated game state
-            }
+          val updatedBoard = revealSquare(row, col, board)
+          printBoard(updatedBoard) >> {
+            val gameResolution = checkWin(updatedBoard)
+            gameResolution match {
+              case Some(GameResolution.Win(_)) =>
+                println("\n\nCongratulations!! You Win!!\n")
+                for {
+                  newEndTime <- IO.realTimeInstant
+                  elapsedTime = (newEndTime.toEpochMilli - startTime.toEpochMilli) / 1000
+                  _ <- IO.println(s"\nElapsed Time: $elapsedTime seconds")
+                } yield ()
+              case Some(GameResolution.Lose(_)) =>
+                println("\nGame Over! You hit a mine.\n")
+                // If the game is lost, reveal all bomb squares
+                val updatedBoardWithBombs = revealBombs(updatedBoard)
+                printBoard(updatedBoardWithBombs)
+              case _ => ref.update(_.copy(board = updatedBoard)) >> loop(startTime, endTime, updatedBoard, ref)
+            } // Recursively calls loop with updated game state
           }
         case _ =>
           loop(startTime, endTime, board, ref) // Invalid input, prompt again

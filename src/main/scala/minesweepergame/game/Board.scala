@@ -15,8 +15,10 @@ object Board {
   private val ANSI_BLUE = "\u001B[34m"
   private val ANSI_MAGENTA = "\u001B[35m"
   private val ANSI_GREY = "\u001B[90m"
+  private val ANSI_YELLOW = "\u001B[93m"
   private val ANSI_BRIGHT_BLUE = "\u001B[94m"
   private val ANSI_BRIGHT_CYAN = "\u001B[96m"
+
 
   // Start by defining a board
   type Board = Vector[Vector[Square]]
@@ -27,13 +29,13 @@ object Board {
     val numRows = level match {
       case GameLevel.Easy => 8
       case GameLevel.Medium => 16
-      case GameLevel.Expert => 30
+      case GameLevel.Expert => 16
     }
 
     val numCols = level match {
       case GameLevel.Easy => 8
       case GameLevel.Medium => 16
-      case GameLevel.Expert => 16
+      case GameLevel.Expert => 30
     }
 
     val numMines = level match {
@@ -79,7 +81,7 @@ object Board {
         // Checks if the square was revealed
         val displayBoard = if (square.isRevealed) {
           // Checks if it's a mine or not
-          if (square.isMine) "*"
+          if (square.isMine) ANSI_YELLOW + "*".padTo(3, ' ') + ANSI_RESET
           else {
             val adjMines = countAdjacentMines(board, rowIndex, colIndex)
             adjMines match {
@@ -146,6 +148,20 @@ object Board {
     revealAdjacent(row, col, board)
   }
 
+  // Reveals all the bomb squares on the board
+  def revealBombs(board: Board): Board = {
+    // Iterate over each square on the board
+    val revealedBoard = board.map { row =>
+      row.map { square =>
+        // If the square is a bomb, reveal it
+        if (square.isMine) square.copy(isRevealed = true)
+        else square // Otherwise, leave it unchanged
+      }
+    }
+    // Return the updated board with revealed bombs
+    revealedBoard
+  }
+
 
   // Examines all possible directions where there could be a mine
   def countAdjacentMines(board: Board, row: Int, col: Int): Int = {
@@ -163,7 +179,4 @@ object Board {
       } else 0
     }.sum
   }
-
-  // Checks if all non-mine squares are revealed, and if true it means the player won
-  //def checkWin(board: Board): Boolean = !board.flatten.exists(square => !square.isMine && !square.isRevealed)
 }

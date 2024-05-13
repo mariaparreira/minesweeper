@@ -1,16 +1,21 @@
 package minesweepergame.server
 
+// Imports
+
 import cats.effect.std.Queue
 import cats.effect.{IO, Ref}
 import cats.implicits.toFoldableOps
 import minesweepergame.game.{GameId, GameLevel, GameResolution, GameSession, Player}
-import org.http4s.{AuthedRoutes, HttpRoutes}
+import org.http4s.HttpRoutes
 import org.http4s.circe.CirceEntityCodec._
 import org.http4s.dsl.io._
 import io.circe.syntax._
 import io.circe.parser._
 import fs2._
-import org.http4s.server.AuthMiddleware
+
+import scala.concurrent.duration.DurationInt
+//import org.http4s.server.AuthMiddleware
+import org.http4s.server.middleware.CORS
 import org.http4s.server.websocket.WebSocketBuilder2
 import org.http4s.websocket.WebSocketFrame
 import org.http4s.websocket.WebSocketFrame._
@@ -18,19 +23,32 @@ import org.http4s.websocket.WebSocketFrame._
 import java.util.UUID
 
 object GameRoutes {
-  def apply(games: Ref[IO, Map[UUID, GameSession]], leaderBoard: Ref[IO, Map[String, Long]], authMiddleware: AuthMiddleware[IO, Player], wsb: WebSocketBuilder2[IO]): HttpRoutes[IO] = {
+  def apply(games: Ref[IO, Map[UUID, GameSession]], leaderBoard: Ref[IO, Map[String, Long]], wsb: WebSocketBuilder2[IO]): HttpRoutes[IO] = {
 
-    val authedRoutes: AuthedRoutes[Player, IO] = AuthedRoutes.of[Player, IO] {
-      case POST -> Root / "game" / "create" / GameLevel(level) as player =>
+    // ping/pong messages so the connection is not lost after a minute
+    val pingInterval = 1.second
+
+    def sendPing(queue: Queue[IO, WebSocketFrame]): IO[Unit] = queue.offer(WebSocketFrame.Ping())
+
+    // Route Definitions
+//    val authedRoutes: AuthedRoutes[Player, IO] = AuthedRoutes.of[Player, IO] {
+
+    val routes = HttpRoutes.of[IO] {
+
+      // Handles game creation
+      case POST -> Root / "game" / "create" / GameLevel(level) =>
         for {
           instant <- IO.realTimeInstant
+          player = Player("name")
           newGameSession <- GameSession.create(player, instant, None, level) // creates a new GameSession and passes the playerId
           gameId <- IO.randomUUID // creates a new UUID for gameId
           _ <- games.update(_.updated(gameId, newGameSession))
           response <- Ok(s"Game created with the ID: $gameId")
         } yield response // responds with UUID
 
-      case GET -> Root / "game" / "connect" / GameId(id) as player =>
+      // Handles game connection
+      case GET -> Root / "game" / "connect" / GameId(id) =>
+        val player = Player("name")
         for {
           canJoinGame <- games.get.map(_.get(id).exists(_.player == player))
           response <- if (canJoinGame) {
@@ -38,7 +56,7 @@ object GameRoutes {
               queue <- Queue.unbounded[IO, WebSocketFrame]
               sendText = (text: String) => queue.offer(WebSocketFrame.Text(text))
               response <- wsb.build(
-                send = Stream.repeatEval(queue.take),
+                send = Stream.awakeEvery[IO](pingInterval).evalMap(_ => sendPing(queue)).drain merge Stream.repeatEval(queue.take),
                 receive = _.evalMap {
                   case Text(text, _) =>
                     decode[Command](text) match {
@@ -77,6 +95,7 @@ object GameRoutes {
                         } yield ()
                       case Left(e) => sendText(s"Failed to parse $text as a command due to $e")
                     }
+                  case Ping(data) => queue.offer(WebSocketFrame.Pong(data))
                   case _ => IO.unit
                 }
               )
@@ -86,7 +105,8 @@ object GameRoutes {
 
         } yield response
 
-      case GET -> Root / "game" / "leaderBoard" as _ =>
+      // Handles leaderboard requests
+      case GET -> Root / "game" / "leaderBoard" =>
         for {
           leaderBoardMap <- leaderBoard.get
           top10Results = leaderBoardMap.toList.sortBy(_._2).take(10) // Get top 10 results sorted by ascending order of time
@@ -94,7 +114,7 @@ object GameRoutes {
         } yield response
     }
 
-    authMiddleware(authedRoutes)
+    CORS(routes);
   }
 }
 

@@ -10,15 +10,17 @@ import org.http4s.server.AuthMiddleware
 import pdi.jwt.JwtAlgorithm.HS256
 import pdi.jwt.{Jwt, JwtClaim}
 
-import java.util.UUID
-
 object AuthRoutes {
   def apply(authSecret: String, authMiddleware: AuthMiddleware[IO, Player]): HttpRoutes[IO] = {
+
+    // Route Definitions
     HttpRoutes.of[IO] {
+
+      // Handles player authentication
       case POST -> Root / "auth" / "login" / screenName =>
         for {
           playerId <- IO.randomUUID // Generates random UUID
-          player = Player(playerId, screenName) // Creates a player object with the provided screenName
+          player = Player(screenName) // Creates a player object with the provided screenName
           claim = JwtClaim(
             expiration = Some(System.currentTimeMillis() + 86400 * 1000), // Token expires in 24 hours
             subject = Some(player.asJson.noSpaces) // Includes player information in the payload
@@ -27,6 +29,8 @@ object AuthRoutes {
           response <- Ok(token) // Responds with the token
         } yield response
     } <+> authMiddleware(AuthedRoutes.of[Player, IO] { // Combines the login endpoint with authenticated routes
+
+      // Handles authentication information
       case GET -> Root / "auth" / "info" as player =>
         Ok(s"Player ID: $player")
     })

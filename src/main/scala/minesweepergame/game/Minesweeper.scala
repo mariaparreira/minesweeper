@@ -51,7 +51,7 @@ object Minesweeper extends IOApp {
             val gameResolution = checkWin(updatedBoard)
             gameResolution match {
               case Some(GameResolution.Win(_)) =>
-                println("\n\nCongratulations!! You Win!!\n")
+                println("\n\nCongratulations!! You Win!!")
                 for {
                   newEndTime <- IO.realTimeInstant
                   elapsedTime = (newEndTime.toEpochMilli - startTime.toEpochMilli) / 1000
@@ -79,7 +79,7 @@ object Minesweeper extends IOApp {
     val program = for {
       _ <- IO.println("Choose game level: Easy, Medium, Expert")
       playerId <- IO.randomUUID
-      player = Player(playerId, playerName)
+      player = Player(playerName)
       userLevel <- IO.delay(StdIn.readLine())
       gameLevel <- parseLevel(userLevel)
       startTime <- IO.realTimeInstant

@@ -4,7 +4,7 @@ import cats.effect.IO
 import io.circe._
 import io.circe.generic.semiauto._
 import minesweepergame.game.Board._
-import minesweepergame.server.Command
+import minesweepergame.server.{Command, FlagAction, RevealAction}
 
 import java.time.Instant
 
@@ -16,15 +16,21 @@ final case class GameSession(player: Player, startTime: Instant, endTime: Option
   def handleCommand(command: Command, now: Instant): (GameSession, Option[GameResolution]) = {
     if (gameOver) (this, None) // Returns the current state without updating
     else {
-      val updatedBoard = Board.revealSquare(command.row, command.col, board) // updates the board given the command
-      val gameResolution = GameResolution.checkWin(updatedBoard) // checks if won or lost game
-      val updatedTime = gameResolution match {
-        case Some(GameResolution.Win(_)) | Some(GameResolution.Lose(_)) => Some(now)
-        case _ => endTime
-      } // if game won or lost, it'll change the endTime to the current time. otherwise, endTime will stay null.
-
-      val updatedGame = copy(board = updatedBoard, endTime = updatedTime)
-      (updatedGame, gameResolution)
+      command.action match {
+        case RevealAction =>
+          val updatedBoard = Board.revealSquare(command.row, command.col, board)
+          val gameResolution = GameResolution.checkWin(updatedBoard)
+          val updatedTime = gameResolution match {
+            case Some(GameResolution.Win(_)) | Some(GameResolution.Lose(_)) => Some(now)
+            case _ => endTime
+          }
+          val updatedGame = copy(board = updatedBoard, endTime = updatedTime)
+          (updatedGame, gameResolution)
+        case FlagAction =>
+          val updatedBoard = Board.toggleFlag(command.row, command.col, board)
+          val updatedGame = copy(board = updatedBoard)
+          (updatedGame, None)
+      }
     }
   }
 }

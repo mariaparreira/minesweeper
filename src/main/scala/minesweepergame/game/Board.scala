@@ -26,22 +26,10 @@ object Board {
   def of(level: GameLevel): IO[Board] = {
 
     // Calculates the sizing and number of mines in the board, based on the level
-    val numRows = level match {
-      case GameLevel.Easy => 8
-      case GameLevel.Medium => 16
-      case GameLevel.Expert => 16
-    }
-
-    val numCols = level match {
-      case GameLevel.Easy => 8
-      case GameLevel.Medium => 16
-      case GameLevel.Expert => 30
-    }
-
-    val numMines = level match {
-      case GameLevel.Easy => 10
-      case GameLevel.Medium => 40
-      case GameLevel.Expert => 99
+    val (numRows, numCols, numMines) = level match {
+      case GameLevel.Easy   => (8, 8, 10)
+      case GameLevel.Medium => (16, 16, 40)
+      case GameLevel.Expert => (16, 30, 99)
     }
 
     // Generates all possible positions on the board, by iterating over each row and column
@@ -52,14 +40,25 @@ object Board {
       } yield (row, col)
 
     for {
-      // Selects a random subset of the positions to be mines
       mines <- IO { Random.shuffle(allPositions).take(numMines).toSet }
     } yield {
-      // Creates a 2D game board
-      Vector.tabulate(numRows, numCols) { (row, col) =>
+      println(s"Number of mines: ${mines.size}") // Debug print
+      mines.foreach(println) // Print mine positions
+
+      val boardWithMines = Vector.tabulate(numRows, numCols) { (row, col) =>
         val isMine = mines.contains((row, col))
         Square(isMine, isRevealed = false)
       }
+
+      val boardWithAdjacentMines = boardWithMines.indices.map { rowIndex =>
+        boardWithMines(rowIndex).indices.map { colIndex =>
+          val square = boardWithMines(rowIndex)(colIndex)
+          if (square.isMine) square
+          else square.copy(adjacentMines = countAdjacentMines(boardWithMines, rowIndex, colIndex))
+        }.toVector
+      }.toVector
+
+      boardWithAdjacentMines
     }
   }
 
@@ -144,6 +143,7 @@ object Board {
       } else board // If the specified position is out of bounds, return the original board
     }
 
+    println(s"Revealing square at ($row, $col)") // Debug print
     // Starts revealing adjacent squares from the specified position
     revealAdjacent(row, col, board)
   }
@@ -178,5 +178,17 @@ object Board {
         if (board(newRow)(newCol).isMine) 1 else 0
       } else 0
     }.sum
+  }
+
+  def toggleFlag(row: Int, col: Int, board: Board): Board = {
+    // Retrieve the square at the specified row and column
+    val square = board(row)(col)
+
+    // Create an updated square with the flag status toggled
+    val updatedSquare = square.copy(isFlagged = !square.isFlagged)
+
+    // Update the board with the modified square
+    val updatedRow = board(row).updated(col, updatedSquare)
+    board.updated(row, updatedRow)
   }
 }

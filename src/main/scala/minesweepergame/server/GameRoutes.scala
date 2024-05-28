@@ -5,7 +5,7 @@ package minesweepergame.server
 import cats.effect.std.Queue
 import cats.effect.{IO, Ref}
 import cats.implicits.toFoldableOps
-import minesweepergame.game.{GameId, GameLevel, GameResolution, GameSession, Player}
+import minesweepergame.game.{CreatePlayerRequest, GameId, GameLevel, GameResolution, GameResponse, GameSession, Player}
 import org.http4s.HttpRoutes
 import org.http4s.circe.CirceEntityCodec._
 import org.http4s.dsl.io._
@@ -36,69 +36,75 @@ object GameRoutes {
     val routes = HttpRoutes.of[IO] {
 
       // Handles game creation
-      case POST -> Root / "game" / "create" / GameLevel(level) =>
+      case req @ POST -> Root / "game" / "create" / GameLevel(level) =>
         for {
+          createPlayerRequest <- req.as[CreatePlayerRequest]
           instant <- IO.realTimeInstant
-          player = Player("name")
+          player = Player(createPlayerRequest.playerName)
           newGameSession <- GameSession.create(player, instant, None, level) // creates a new GameSession and passes the playerId
           gameId <- IO.randomUUID // creates a new UUID for gameId
           _ <- games.update(_.updated(gameId, newGameSession))
-          response <- Ok(s"Game created with the ID: $gameId")
+          response <- Ok(GameResponse(gameId.toString, newGameSession.board))
         } yield response // responds with UUID
 
       // Handles game connection
-      case GET -> Root / "game" / "connect" / GameId(id) =>
-        val player = Player("name")
+      case req @ GET -> Root / "game" / "connect" / GameId(id) :? PlayerNameQueryParamMatcher(playerName) =>
+        val player = Player(playerName)
         for {
           canJoinGame <- games.get.map(_.get(id).exists(_.player == player))
           response <- if (canJoinGame) {
             for {
               queue <- Queue.unbounded[IO, WebSocketFrame]
               sendText = (text: String) => queue.offer(WebSocketFrame.Text(text))
-              response <- wsb.build(
-                send = Stream.awakeEvery[IO](pingInterval).evalMap(_ => sendPing(queue)).drain merge Stream.repeatEval(queue.take),
-                receive = _.evalMap {
-                  case Text(text, _) =>
-                    decode[Command](text) match {
-                      case Right(command) =>
-                        for {
-                          now <- IO.realTimeInstant
-                          maybeUpdateGameAndMaybeResolution <- games.modify { games =>
-                            games.get(id) match {
-                              case Some(game) => // If game was found
-                                val (updatedGame, resolution) = game.handleCommand(command, now)
-                                // If no resolution - update game, if there's one (lose/win) - remove
-                                val newState = resolution.fold(games.updated(id, updatedGame))(_ => games.removed(id))
-                                (newState, Some((updatedGame, resolution)))
-                              case None => (games, None) // If no game found, doesn't update games ref and returns None
-                            }
-                          }
-                          _ <- maybeUpdateGameAndMaybeResolution match {
-                            case Some((updatedGame, maybeResolution)) => // This means a game was found and updated
-                              for {
-                                _ <- sendText(updatedGame.asJson.noSpaces)
-                                _ <- maybeResolution.traverse_ { resolution =>
-                                  val updateLeaderBoard = resolution match {
-                                    case _: GameResolution.Win => // If win, calculates time taken
-                                      val elapsedTime = now.getEpochSecond - updatedGame.startTime.getEpochSecond
-                                      leaderBoard.update { leaderBoard => // and updates the LB with best time
-                                        val bestTime = leaderBoard.get(player.screenName).map(_.min(elapsedTime)).getOrElse(elapsedTime)
-                                        leaderBoard.updated(player.screenName, bestTime)
-                                      }
-                                    case _ => IO.unit
-                                  }
-                                  // Sends a message indicating the resolution outcome and disconnects the server
-                                  updateLeaderBoard *> sendText(resolution.msg) *> queue.offer(WebSocketFrame.Close())
+              gameSessionOpt <- games.get.map(_.get(id))
+              response <- gameSessionOpt match {
+                case Some(gameSession) =>
+                  wsb.build(
+                    send = Stream.awakeEvery[IO](pingInterval).evalMap(_ => sendPing(queue)).drain merge Stream.repeatEval(queue.take),
+                    receive = _.evalMap {
+                      case Text(text, _) =>
+                        decode[Command](text) match {
+                          case Right(command) =>
+                            for {
+                              now <- IO.realTimeInstant
+                              maybeUpdateGameAndMaybeResolution <- games.modify { games =>
+                                games.get(id) match {
+                                  case Some(game) => // If game was found
+                                    val (updatedGame, resolution) = game.handleCommand(command, now)
+                                    // If no resolution - update game, if there's one (lose/win) - remove
+                                    val newState = resolution.fold(games.updated(id, updatedGame))(_ => games.removed(id))
+                                    (newState, Some((updatedGame, resolution)))
+                                  case None => (games, None) // If no game found, doesn't update games ref and returns None
                                 }
-                              } yield ()
-                          }
-                        } yield ()
-                      case Left(e) => sendText(s"Failed to parse $text as a command due to $e")
+                              }
+                              _ <- maybeUpdateGameAndMaybeResolution match {
+                                case Some((updatedGame, maybeResolution)) => // This means a game was found and updated
+                                  for {
+                                    _ <- sendText(updatedGame.asJson.noSpaces)
+                                    _ <- maybeResolution.traverse_ { resolution =>
+                                      val updateLeaderBoard = resolution match {
+                                        case _: GameResolution.Win => // If win, calculates time taken
+                                          val elapsedTime = now.getEpochSecond - updatedGame.startTime.getEpochSecond
+                                          leaderBoard.update { leaderBoard => // and updates the LB with best time
+                                            val bestTime = leaderBoard.get(player.screenName).map(_.min(elapsedTime)).getOrElse(elapsedTime)
+                                            leaderBoard.updated(player.screenName, bestTime)
+                                          }
+                                        case _ => IO.unit
+                                      }
+                                      // Sends a message indicating the resolution outcome and disconnects the server
+                                      updateLeaderBoard *> sendText(resolution.msg) *> queue.offer(WebSocketFrame.Close())
+                                    }
+                                  } yield ()
+                              }
+                            } yield ()
+                          case Left(e) => sendText(s"Failed to parse $text as a command due to $e")
+                        }
+                      case Ping(data) => queue.offer(WebSocketFrame.Pong(data))
+                      case _ => IO.unit
                     }
-                  case Ping(data) => queue.offer(WebSocketFrame.Pong(data))
-                  case _ => IO.unit
-                }
-              )
+                  ) <* sendText(gameSession.copy(endTime = None).asJson.noSpaces)
+
+              }
             } yield response
           }
           else NotFound()
@@ -116,6 +122,8 @@ object GameRoutes {
 
     CORS(routes);
   }
+
+  private object PlayerNameQueryParamMatcher extends QueryParamDecoderMatcher[String]("playerName")
 }
 
 // The apply method takes a mutable reference to a map of game sessions and an AuthMiddleware for authentication as

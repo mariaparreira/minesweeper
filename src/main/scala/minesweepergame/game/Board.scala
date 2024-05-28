@@ -1,10 +1,14 @@
 package minesweepergame.game
 
 import cats.effect.IO
+import io.circe.{Codec, Decoder}
+import io.circe.generic.semiauto.deriveCodec
 
 import scala.util.Random
 
 object Board {
+
+  implicit val boardCodec: Decoder[Board] = Decoder.decodeVector
 
   // Define colors using ANSI escape codes
   private val ANSI_RESET = "\u001B[0m"
@@ -29,7 +33,7 @@ object Board {
     val (numRows, numCols, numMines) = level match {
       case GameLevel.Easy   => (8, 8, 10)
       case GameLevel.Medium => (16, 16, 40)
-      case GameLevel.Expert => (16, 30, 99)
+      case GameLevel.Expert => (30, 16, 99)
     }
 
     // Generates all possible positions on the board, by iterating over each row and column

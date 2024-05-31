@@ -146,8 +146,6 @@ object Board {
         } else board // If the square is already revealed, return the original board
       } else board // If the specified position is out of bounds, return the original board
     }
-
-    println(s"Revealing square at ($row, $col)") // Debug print
     // Starts revealing adjacent squares from the specified position
     revealAdjacent(row, col, board)
   }

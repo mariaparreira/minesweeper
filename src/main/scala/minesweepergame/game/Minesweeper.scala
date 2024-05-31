@@ -84,7 +84,7 @@ object Minesweeper extends IOApp {
       gameLevel <- parseLevel(userLevel)
       startTime <- IO.realTimeInstant
       initialBoard <- Board.of(gameLevel)
-      ref <- Ref.of[IO, GameSession](GameSession(player, startTime, None, initialBoard))
+      ref <- Ref.of[IO, GameSession](GameSession(player, startTime, None, initialBoard, gameLevel))
       _ <- gameLoop(ref)
     } yield ()
 

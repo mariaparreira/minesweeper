@@ -23,7 +23,7 @@ import org.http4s.websocket.WebSocketFrame._
 import java.util.UUID
 
 object GameRoutes {
-  def apply(games: Ref[IO, Map[UUID, GameSession]], leaderBoard: Ref[IO, Map[String, Long]], wsb: WebSocketBuilder2[IO]): HttpRoutes[IO] = {
+  def apply(games: Ref[IO, Map[UUID, GameSession]], leaderBoard: Ref[IO, Map[GameLevel, Map[String, Long]]], wsb: WebSocketBuilder2[IO]): HttpRoutes[IO] = {
 
     // ping/pong messages so the connection is not lost after a minute
     val pingInterval = 1.second
@@ -48,7 +48,7 @@ object GameRoutes {
         } yield response // responds with UUID
 
       // Handles game connection
-      case req @ GET -> Root / "game" / "connect" / GameId(id) :? PlayerNameQueryParamMatcher(playerName) =>
+      case GET -> Root / "game" / "connect" / GameId(id) :? PlayerNameQueryParamMatcher(playerName) =>
         val player = Player(playerName)
         for {
           canJoinGame <- games.get.map(_.get(id).exists(_.player == player))
@@ -85,9 +85,10 @@ object GameRoutes {
                                       val updateLeaderBoard = resolution match {
                                         case _: GameResolution.Win => // If win, calculates time taken
                                           val elapsedTime = now.getEpochSecond - updatedGame.startTime.getEpochSecond
-                                          leaderBoard.update { leaderBoard => // and updates the LB with best time
-                                            val bestTime = leaderBoard.get(player.screenName).map(_.min(elapsedTime)).getOrElse(elapsedTime)
-                                            leaderBoard.updated(player.screenName, bestTime)
+                                          leaderBoard.update { currentLeaderboard => // and updates the LB with best time based on the game level
+                                            val currentLevel = currentLeaderboard.getOrElse(gameSession.level, Map.empty)
+                                            val bestTime = currentLevel.get(player.screenName).map(_.min(elapsedTime)).getOrElse(elapsedTime)
+                                            currentLeaderboard.updated(gameSession.level, currentLevel.updated(player.screenName, bestTime))
                                           }
                                         case _ => IO.unit
                                       }
@@ -112,10 +113,10 @@ object GameRoutes {
         } yield response
 
       // Handles leaderboard requests
-      case GET -> Root / "game" / "leaderBoard" =>
+      case GET -> Root / "game" / "leaderBoard" / GameLevel(level) =>
         for {
           leaderBoardMap <- leaderBoard.get
-          top10Results = leaderBoardMap.toList.sortBy(_._2).take(10) // Get top 10 results sorted by ascending order of time
+          top10Results = leaderBoardMap.get(level).toList.flatMap(_.toList).sortBy(_._2).take(10) // Get top 10 results sorted by ascending order of time
           response <- Ok(top10Results.asJson)
         } yield response
     }

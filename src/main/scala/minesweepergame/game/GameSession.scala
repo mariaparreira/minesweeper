@@ -8,7 +8,7 @@ import minesweepergame.server.{Command, FlagAction, RevealAction}
 
 import java.time.Instant
 
-final case class GameSession(player: Player, startTime: Instant, endTime: Option[Instant], board: Board) {
+final case class GameSession(player: Player, startTime: Instant, endTime: Option[Instant], board: Board, level: GameLevel) {
   // Checks if the game is over, based on the time
   def gameOver: Boolean = endTime.isDefined
 
@@ -42,6 +42,6 @@ object GameSession {
   def create(player: Player, startTime: Instant, endTime: Option[Instant], level: GameLevel): IO[GameSession] = {
     for {
       board <- Board.of(level)
-    } yield GameSession(player, startTime, endTime, board)
+    } yield GameSession(player, startTime, endTime, board, level)
   }
 }

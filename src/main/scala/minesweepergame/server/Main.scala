@@ -3,7 +3,7 @@ package minesweepergame.server
 import cats.effect._
 import cats.implicits._
 import com.comcast.ip4s._
-import minesweepergame.game.GameSession
+import minesweepergame.game.{GameLevel, GameSession}
 import minesweepergame.server.authentication.{AppConfig, AuthMiddleware, AuthRoutes}
 import org.http4s.ember.server._
 import org.http4s.implicits._
@@ -22,7 +22,7 @@ object Main extends IOApp {
     for {
       config <- ConfigSource.default.loadF[IO, AppConfig]
       gameRef <- Ref.of[IO, Map[UUID, GameSession]](Map.empty)
-      leaderBoardRef <- Ref.of[IO, Map[String, Long]](Map.empty)
+      leaderBoardRef <- Ref.of[IO, Map[GameLevel, Map[String, Long]]](Map.empty)
 //      authMiddleware = AuthMiddleware(config.authSecret)
 //      authRoutes      = AuthRoutes(config.authSecret, authMiddleware)
       healthRoutes = HealthRoutes()
